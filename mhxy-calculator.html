@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>梦幻西游 · 计算工具箱</title>
+<style>
+/* ============================================================
+   统一设计系统
+   所有工具共用同一套 CSS 变量与组件类，新增工具直接复用即可
+   ============================================================ */
+:root{
+  --ink:#241f1c; --ink2:#5a5148; --ink3:#8b8175;
+  --line:#e3dbcd; --paper:#faf7f1; --card:#fffdf9; --sunken:#f6f2ea;
+  --red:#a8262c; --red-bg:#fdeaea;
+  --gold:#b8891f; --gold-bg:#fdf6e3;
+  --jade:#2c6e5b; --jade-bg:#eef6f2;
+  --shadow:0 1px 3px rgba(60,40,20,.07);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--ink); font-size:15px; line-height:1.6;
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans SC",sans-serif;
+}
+body::before{                      /* 装饰渐变独立成层，内容重绘不会带着它一起画 */
+  content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background-image:radial-gradient(circle at 12% -10%,rgba(168,38,44,.07),transparent 45%),
+                   radial-gradient(circle at 92% 0%,rgba(184,137,31,.10),transparent 40%);
+}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 18px 56px}
+
+/* ---- 页头与工具导航 ---- */
+header.top{text-align:center;margin-bottom:20px}
+header.top h1{margin:0;font-size:27px;letter-spacing:.06em;font-weight:700;
+  background:linear-gradient(96deg,var(--red),#d99a2b 70%);-webkit-background-clip:text;background-clip:text;color:transparent}
+header.top .sub{margin:8px 0 0;color:var(--ink2);font-size:13.5px}
+.tabs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:18px;
+  background:#f2ede3;border:1px solid var(--line);border-radius:12px;padding:4px}
+.tabs button{font:inherit;font-size:13.5px;font-weight:600;letter-spacing:.03em;color:var(--ink2);
+  padding:9px 20px;border:none;border-radius:9px;background:transparent;cursor:pointer;transition:background .15s,color .15s}
+.tabs button:hover{color:var(--red)}
+.tabs button.active{background:#fff;color:var(--red);box-shadow:0 1px 3px rgba(60,40,20,.10)}
+@media (max-width:480px){.tabs button{padding:8px 12px;font-size:12.5px}}
+
+/* ---- 卡片与布局 ---- */
+.grid{display:grid;gap:18px;align-items:start}
+.grid.two{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.grid.batch{grid-template-columns:minmax(0,.78fr) minmax(0,1fr) minmax(0,1.28fr)}
+.grid.batch .span-all{grid-column:1/-1}
+@media (max-width:1060px){
+  .grid.batch{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .grid.batch .span-all{grid-column:1/-1}
+}
+@media (max-width:830px){
+  .grid.two,.grid.batch{grid-template-columns:minmax(0,1fr)}
+  .grid.batch .span-all{grid-column:auto}
+}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;
+  box-shadow:var(--shadow);contain:layout style}
+.card h2{margin:0 0 16px;font-size:15px;letter-spacing:.08em;color:var(--red);font-weight:700;
+  display:flex;align-items:center;gap:8px}
+.card h2::before{content:"";width:3px;height:15px;border-radius:2px;background:linear-gradient(var(--red),var(--gold))}
+
+/* ---- 表单 ---- */
+label.f,.field-label{display:block;font-size:12.5px;color:var(--ink2);margin:0 0 6px;letter-spacing:.04em}
+.field{margin-bottom:15px}
+select,input[type=number]{width:100%;padding:10px 12px;font-size:14.5px;font-family:inherit;color:var(--ink);
+  background:#fff;border:1px solid var(--line);border-radius:9px;outline:none;transition:border-color .15s}
+select:focus,input[type=number]:focus{border-color:var(--gold)}
+input[type=number]:disabled{background:#f1ece2;color:#9b9284}
+input[type=number]::placeholder{color:#b9b0a2}
+.hint{font-size:11.5px;color:var(--ink3);margin-top:5px}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;
+  margin:4px 0 0;cursor:pointer;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px;background:linear-gradient(90deg,var(--red),var(--gold))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+  background:#fff;border:2px solid var(--red);margin-top:-6.5px}
+input[type=range]::-moz-range-track{height:5px;border-radius:3px;background:linear-gradient(90deg,var(--red),var(--gold))}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#fff;border:2px solid var(--red)}
+.slider-hd{display:flex;justify-content:space-between;align-items:baseline}
+.tips{font-size:11.5px;color:#a49a8b;font-variant-numeric:tabular-nums}
+
+.presets{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+.chip{font:inherit;font-size:12.5px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);
+  background:#fff;color:var(--ink2);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.chip:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-bg)}
+.bulk{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink2);flex-wrap:wrap}
+.bulk input[type=number]{width:84px;padding:8px 10px;font-size:14px;text-align:center}
+.bulk button{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);
+  background:#fff;color:var(--ink2);cursor:pointer}
+.bulk button:hover{border-color:var(--gold);color:var(--gold);background:var(--gold-bg)}
+
+/* ---- 选项卡（如「修炼类型」）---- */
+.opts{display:flex;flex-wrap:wrap;gap:9px}
+.opt{flex:1 1 150px;text-align:left;font:inherit;color:var(--ink);cursor:pointer;
+  border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;transition:.15s}
+.opt:hover{border-color:#d9c9a8}
+.opt .n{font-weight:600;display:block;font-size:13.5px}
+.opt .t{font-size:11.5px;color:var(--ink2);line-height:1.5}
+.opt[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-bg);box-shadow:0 0 0 2px rgba(184,137,31,.15)}
+
+/* ---- 模式切换 ---- */
+.seg{display:inline-flex;background:#f2ede3;border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px;margin-bottom:18px}
+.seg button{font:inherit;font-size:13.5px;padding:8px 18px;border:none;border-radius:8px;background:transparent;
+  color:var(--ink2);cursor:pointer;font-weight:600;letter-spacing:.03em}
+.seg button.active{background:#fff;color:var(--red);box-shadow:0 1px 3px rgba(60,40,20,.10)}
+@media (max-width:430px){.seg{display:flex;width:100%} .seg button{flex:1;padding:8px 6px;font-size:12.5px}}
+
+/* ---- 结果：统计卡 ---- */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stats.one{grid-template-columns:1fr}
+@media (max-width:430px){.stats{grid-template-columns:1fr}}
+.stat{border-radius:11px;padding:15px 16px;contain:layout paint style;
+  background:linear-gradient(160deg,#fff,#fdfaf3);border:1px solid var(--line)}
+.stat.tone-jade{background:linear-gradient(160deg,var(--jade-bg),#fff);border-color:#cfe3da}
+.stat.tone-gold{background:linear-gradient(160deg,var(--gold-bg),#fff);border-color:#ecd9a8}
+.stat.tone-red{background:linear-gradient(160deg,var(--red-bg),#fff);border-color:#f2c9c9}
+.stat .k{font-size:12.5px;color:var(--ink2);letter-spacing:.05em}
+.stat .v{font-size:26px;font-weight:800;letter-spacing:-.01em;margin:4px 0 2px;
+  font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat.tone-jade .v{color:var(--jade)}
+.stat.tone-gold .v{color:var(--gold)}
+.stat.tone-red  .v{color:var(--red)}
+.stat .sub{font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;min-height:1.4em}
+.stat.hero{grid-column:1/-1;text-align:center;padding:20px 16px}
+.stat.hero .v{font-size:36px;line-height:1.25}
+
+.summary{margin-top:14px;padding:11px 14px;border-radius:9px;background:var(--sunken);border:1px dashed var(--line);
+  font-size:13.5px;color:var(--ink2);contain:layout paint style}
+.summary b{color:var(--ink)}
+
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.pill{font-size:12.5px;background:var(--sunken);border:1px solid var(--line);border-radius:999px;
+  padding:4px 12px;color:var(--ink2)}
+.pill b{color:var(--gold)}
+.pill.warn{background:var(--red-bg);border-color:#f2c9c2;color:#8e2f22}
+.pill.warn b{color:var(--red)}
+
+.alert{padding:12px 14px;border-radius:9px;font-size:13.5px;margin-top:14px;
+  background:var(--red-bg);border:1px solid #f2c9c9;color:#9b2424}
+.idle{padding:26px 16px;text-align:center;color:var(--ink3);font-size:13.5px}
+
+/* ---- 表格 ---- */
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:9px;margin-top:12px}
+.table-wrap.tall{max-height:340px}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid #efe9dd}
+th:first-child,td:first-child{text-align:left}
+th:nth-child(2),td:nth-child(2){text-align:left}
+thead th{background:var(--sunken);color:var(--ink2);font-weight:600;font-size:12.5px;border-bottom:1px solid var(--line)}
+.table-wrap.tall thead th{position:sticky;top:0;z-index:1}
+tbody tr:nth-child(even){background:#fcfaf6}
+tr.total td{font-weight:800;border-top:2px solid var(--line);background:var(--gold-bg)!important}
+td.op{font-weight:600}
+tr.lower td.op{color:var(--red)}
+tr.lower td{background:#fdf3f1}
+.side-note{font-size:11.5px;color:var(--ink3);margin-top:9px}
+/* 降修明细：# 与 操作 要贴在一起。
+   表格是自动布局 + width:100%，「合计」那行的 colspan 会把窄的 # 列一起撑开，
+   于是序号和操作之间出现一大片空白 —— 把这两列钉成收缩宽度，多余宽度让给右侧数字列。 */
+.table-wrap.flow th:first-child,.table-wrap.flow td:first-child,
+.table-wrap.flow th:nth-child(2),.table-wrap.flow td:nth-child(2){width:1%;white-space:nowrap}
+
+details{border-top:1px dashed var(--line);margin-top:16px;padding-top:12px}
+details > summary{cursor:pointer;font-size:13.5px;color:var(--red);font-weight:600;letter-spacing:.04em;list-style:none}
+details > summary::-webkit-details-marker{display:none}
+details > summary::before{content:"▸ ";display:inline-block}
+details[open] > summary::before{content:"▾ "}
+
+/* ============================================================
+   师门技能工具专用组件
+   ============================================================ */
+.skrow{display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;align-items:start;
+  padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:7px;
+  cursor:pointer;transition:border-color .12s,background .12s}
+.skrow:hover{border-color:#d8cdb8}
+.skrow.off{opacity:.45}
+.skrow.active{border-color:var(--red);background:#fffaf7;box-shadow:0 0 0 2px rgba(168,38,44,.10)}
+.skrow input[type=checkbox]{width:16px;height:16px;margin:3px 0 0;accent-color:var(--red);cursor:pointer}
+.sk-name{font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.sk-lv{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2);margin-top:6px;white-space:nowrap}
+.sk-lv input[type=number]{width:84px;padding:7px 9px;font-size:13.5px;text-align:center}
+.tag{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;
+  background:var(--gold-bg);color:var(--gold);border:1px solid #ecd9a8}
+/* 属性标签（速度/伤害/命中…）：和「主技能」同一套 tag 样式，只换颜色 */
+.tag.attr{background:var(--jade-bg);color:var(--jade);border-color:#cfe3da}
+.sk-line{font-size:12.5px;color:var(--ink2);margin-top:3px;line-height:1.6}
+.sk-line b{color:var(--ink);font-weight:600}
+
+/* 滑条悬停气泡：不点击也能看到当前值 */
+.rwrap{position:relative;padding-top:16px;margin-top:-8px}
+.rval{position:absolute;top:0;transform:translateX(-50%);background:var(--ink);color:#fff;
+  font-size:11.5px;font-weight:700;line-height:1.55;padding:0 7px;border-radius:6px;white-space:nowrap;
+  font-variant-numeric:tabular-nums;pointer-events:none;z-index:2;box-shadow:0 1px 5px rgba(0,0,0,.22)}
+.sk-desc{font-size:12.5px;color:var(--ink3);margin-top:3px;line-height:1.65}
+.sp-hd{padding-bottom:12px;border-bottom:1px dashed var(--line);margin-bottom:12px}
+.sp-hd-name{font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sp-list{display:grid;gap:10px}
+.sp-item{padding:11px 13px;border-radius:9px;background:#f8f5ef;border:1px solid #ece5d8}
+.sp-name{font-size:13.5px;font-weight:700;color:var(--ink);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.unlock{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;
+  background:var(--jade-bg);color:var(--jade);border:1px solid #cfe3da;white-space:nowrap}
+.sp-text{margin-top:6px;font-size:12.5px;color:var(--ink2);line-height:1.7}
+.sp-mile{margin-top:8px;padding-top:7px;border-top:1px dashed #e0d7c6;font-size:12.5px;color:var(--ink2);
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.sp-mile b{color:var(--ink)}
+.mi{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #ecd9a8;
+  border-radius:999px;padding:1px 9px 1px 4px;font-weight:600;color:var(--gold)}
+.mi i{font-style:normal;font-size:11px;font-weight:700;background:var(--gold-bg);
+  border-radius:999px;padding:0 6px;color:var(--gold)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>梦幻西游 · 计算工具箱</h1>
+    <p class="sub">选一个工具开始 · 数据均经交叉核验</p>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+  </header>
+  <main id="host"></main>
+</div>
+
+<!-- ============================================================
+     数据层：每个工具一个数据岛，与代码分离，可单独重新生成
+     ============================================================ -->
+<script type="application/json" id="data-skill">{"cost":{"exp":[16,32,52,75,103,136,179,231,295,372,466,578,711,867,1049,1260,1503,1780,2096,2452,2854,3304,3807,4364,4983,5664,6415,7238,8138,9120,10188,11347,12602,13959,15423,16998,18692,20508,22452,24532,26753,29121,31642,34323,37169,40188,43388,46773,50352,54132,58120,62324,66750,71407,76303,81444,86840,92500,98430,104640,111136,117931,125031,132444,140183,148253,156666,165430,174556,184052,193930,204198,214868,225948,237449,249383,261760,274589,287884,301652,315908,330662,345924,361708,378023,394882,412297,430280,448844,468000,487760,508137,529145,550796,573103,596078,619735,644088,669149,694932,721452,748722,776755,805566,835169,865579,896809,928876,961792,995572,1030234,1065790,1102256,1139649,1177983,1217273,1257536,1298787,1341043,1384320,1428632,1473999,1520435,1567957,1616583,1666328,1717211,1769248,1822456,1876852,1932456,1989284,2047353,2106682,2167289,2229192,2292410,2356960,2422861,2490132,2558792,2628860,2700356,2773296,2847703,2923593,3000989,3079908,3160372,3242400,6652022,6822452,6996132,7173104,7353406,11305620,11586254,11872072,12163140,12459518,15033471,15315219,15600468,15889236,16181550,16477425,16776885,17079954,17386650,17697000,24014692,24438308,24866880,25300432,25739000,32728255,33289095,33856310,34429930,40842000],"gold":[6,12,19,28,38,51,67,86,110,139,174,216,266,325,393,472,563,667,786,919,1070,1238,1426,1636,1868,2124,2404,2714,3050,3420,3820,4255,4725,5234,5783,6374,7009,7690,8419,9199,10032,10920,11865,12871,13938,15070,16270,17540,18882,20299,21795,23371,25031,26777,28613,30541,32565,34687,36911,39240,41676,44224,46886,49666,52568,55595,58749,62036,65458,69019,72723,76574,80575,84730,89043,93518,98160,102971,107956,113119,118465,123998,129721,135640,141758,148080,154611,161355,168316,175500,182910,190551,198429,206548,214913,223529,232400,241533,250931,260599,270544,280770,291283,302087,313188,324592,336303,348328,360672,373339,386337,399671,413346,427368,441743,456477,471576,487045,502891,519120,535737,552749,570163,587984,606218,624873,643954,663468,683421,703819,724671,745981,767757,790005,812733,835947,859653,883860,908573,933799,959547,985822,1012633,1039986,1067888,1096347,1125371,1154965,1185139,1215900,2494508,2558419,2623549,2689914,2757527,4239607,4344845,4452027,4561177,4672319,4510041,4594563,4680138,4766769,4854465,4943226,5033064,5123985,5215995,5309100,7204407,7331490,7460064,7590129,7721700,9818475,9986727,10156893,10328979,12252600]},"sects":[{"name":"大唐官府","abbr":"DT","spells":{"杀气诀":{"t":"功效：战斗中临时提高自己或队友的命中\n使用条件：为官之道技能达到15级\n消耗：40点魔法","u":["为官之道",15]},"后发制人":{"t":"功效：休息一回合后临时提高伤害力、命中和速度，自动攻击目标\n使用条件：无双一击技能达到25级\n消耗：相应技能等级为单数时,在原固定消耗5%的基础上做50%~150%的波动，双数时则消耗当前气血的5%，无波动。","u":["无双一击",25]},"兵器谱":{"t":"功效：能够鉴定武器和铠甲，学习后也可在长安书店制作相应等级的“神兵图鉴”\n使用条件：神兵鉴赏技能等级达到5级\n消耗：一定的活力，视装备等级而定","u":["神兵鉴赏",5]},"千里神行":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：疾风步技能达到1级\n消耗：10点气血和10点魔法","u":["疾风步",1]},"横扫千军":{"t":"功效：连续攻击对方3次。但使用后需休息一回合，休息时不能使用战斗指令，也不会受封类法术影响。\n使用条件：十方无敌技能达到30级以上，当前HP大于上限的50%\n消耗HP：相应技能等级为单数时,在原固定消耗10%的基础上做50%～150%的波动，双数时则消耗最大气血的10%，无波动。","u":["十方无敌",30]},"破釜沉舟":{"t":"功效：同时攻击对方三个目标\n使用条件：人物飞升且“十方无敌”技能达到 120 级\n消耗：上限 10% 的气血。玩家对战要求气血上限的10%当前气血<气血上限的50%时才能使用，其余战斗要求气血上限的10%＜当前气血可使用。当前气血复活后的当前回合无法使用.使用后停止行动1回合","u":["十方无敌",120]},"斩龙诀":{"t":"功效：克制龙宫弟子的必杀技\n使用条件：紫薇之术技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["紫薇之术",25]},"反间之计":{"t":"功效：令怪物处于混乱状态，不能用于玩家对战\n使用条件：文韬武略技能达到20级\n消耗：30点魔法","u":["文韬武略",20]},"安神诀":{"t":"功效：一定回合内临时提升自身灵力\n使用条件：人物飞升且“文韬武略”技能达到 120 级\n消耗： 30 点魔法","u":["文韬武略",120]},"嗜血":{"t":"功效：平时状态下使用，为项链附加提升体质的临时效果，下线后效果消失\n使用条件：文韬武略技能达到35级\n消耗：和技能等级数相同的活力","u":["文韬武略",35]}},"skills":[{"name":"为官之道","main":true,"effect":"","desc":"","spells":["杀气诀"]},{"name":"无双一击","main":false,"effect":"按技能等级提高命中","desc":"","spells":["后发制人"]},{"name":"神兵鉴赏","main":false,"effect":"","desc":"","spells":["兵器谱"]},{"name":"疾风步","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["千里神行"]},{"name":"十方无敌","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["横扫千军","破釜沉舟"]},{"name":"紫薇之术","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["斩龙诀"]},{"name":"文韬武略","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["反间之计","安神诀","嗜血"]}]},{"name":"方寸山","abbr":"FC","spells":{"三星灭魔":{"t":"功效：克制魔王寨弟子的必杀技\n使用条件：黄庭经技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["黄庭经",25]},"五雷咒":{"t":"功效：施展法术攻击对方单人\n使用条件：霹雳咒技能达到1级\n消耗：30点魔法","u":["霹雳咒",1]},"飞行符":{"t":"功效：制作一张飞行符\n使用条件：符之术技能达到21级\n消耗：50点魔法和6点活力，并且活力消耗随着等级提升而减少，最少需要消耗2点活力。","u":["符之术",21]},"兵解符":{"t":"功效：在战斗中逃离战场回到自己门派\n使用条件：符之术技能等级达到10级以上、MP≥10\n消耗MP：当前所有魔法、90%当前气血，使用失败无消耗","u":["符之术",10]},"催眠符":{"t":"功效：令对手在受到伤害前无法行动\n使用条件：符之术技能达到10级\n消耗：45点魔法","u":["符之术",10]},"失心符":{"t":"功效：令对手一定回合内无法使用法术，并降低灵力\n使用条件：符之术技能达到40级\n消耗：60点魔法","u":["符之术",40]},"落魄符":{"t":"功效：使对手在一定时间内无法使用法术，并出现攻击偏差\n使用条件：符之术技能达到15级\n消耗：40点魔法","u":["符之术",15]},"失忆符":{"t":"功效：令对手一定回合无法使用特技\n使用条件：符之术技能达到20级\n消耗：50点魔法","u":["符之术",20]},"追魂符":{"t":"功效：令对手一定回合无法使用物理攻击，并降低物理防御力\n使用条件：符之术技能达到20级\n消耗：55点魔法","u":["符之术",20]},"离魂符":{"t":"功效：令对手一定回合内无法使用法术，并降低躲避力\n使用条件：符之术技能达到25级\n消耗：50点魔法","u":["符之术",25]},"失魂符":{"t":"功效：令对手一定回合无法使用法术攻击，并降低物理防御力\n使用条件：符之术技能达到25级\n消耗：60点魔法","u":["符之术",25]},"定身符":{"t":"功效：令对手一定回合无法使用物理攻击，并减少物理防御力和法术防御力\n使用条件：符之术技能达到30级\n消耗：60点魔法","u":["符之术",30]},"碎甲符":{"t":"功效：降低对方多人物理防御力及灵力\n使用条件：人物飞升且“符之术”技能达到 120 级\n消耗： 50 点魔法 / 人","u":["符之术",120]},"落雷符":{"t":"功效：作用为当目标为怪物时攻击对方多个目标，作用人数公式为技能等级/30+1，最多3个。受法术攻击修炼影响，随着作用人数增加降低伤害效果，魔法消耗随着作用人数增加而增加。除点选目标外其余攻击目标拟依次按照拥有高级鬼魂术技能、低级鬼魂术技能、速度最快前两名的顺序选择。\n使用条件：“符之术”技能达到 20 级\n消耗： 作用人数×30 点魔法","u":["符之术",20]},"归元咒":{"t":"功效：消耗魔法值来补充自己的气血\n使用条件：归元心法技能达到1级\n消耗：20点魔法","u":["归元心法",1]},"凝神术":{"t":"功效：固定10回合内增加10%自身的封系命中与上限。不受修炼效果影响。\n使用条件：归元心法技能达到100级\n消耗：50点魔法","u":["归元心法",100]},"乾天罡气":{"t":"功效：消耗气血来补充自己的魔法值\n使用条件：神道无念技能达到30级\n消耗：20点气血","u":["神道无念",30]},"分身术":{"t":"功效：一定回合里躲避每回合的首次攻击\n使用条件：人物飞升且“神道无念”技能达到 120 级\n消耗： 80 点魔法","u":["神道无念",120]},"神兵护法":{"t":"功效：暂时提高帽子的命中，下线后效果消失。\n使用条件：神道无念技能达到35级\n消耗：和技能等级数相同的活力","u":["神道无念",35]},"乙木仙遁":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：斜月步技能达到1级\n消耗：10点气血和10点魔法","u":["斜月步",1]}},"skills":[{"name":"黄庭经","main":true,"effect":"","desc":"","spells":["三星灭魔"]},{"name":"磬龙灭法","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":[]},{"name":"霹雳咒","main":false,"effect":"","desc":"","spells":["五雷咒"]},{"name":"符之术","main":false,"effect":"","desc":"","spells":["飞行符","兵解符","催眠符","失心符","落魄符","失忆符","追魂符","离魂符","失魂符","定身符","碎甲符","落雷符"]},{"name":"归元心法","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["归元咒","凝神术"]},{"name":"神道无念","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["乾天罡气","分身术","神兵护法"]},{"name":"斜月步","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["乙木仙遁"]}]},{"name":"化生寺","abbr":"HS","spells":{"紫气东来":{"t":"功效：克制普陀山弟子的必杀技\n使用条件：小乘佛法技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["小乘佛法",25]},"佛法无边":{"t":"功效：令同伴施展某些攻击性法术时一定几率出现连续两次攻击（不包括需停回合的法术及群体攻击性法术，如横扫千军、鹰击、后发制人、连环击）\n使用条件：人物飞升且“金刚伏魔”技能达到120级\n消耗：150点魔法","u":["金刚伏魔",120]},"唧唧歪歪":{"t":"功效：攻击性法术，达到一定等级后可以对多人使用\n使用条件：诵经技能达到1级\n消耗：5点气血，20点魔法，作用于多人时消耗魔法增加","u":["诵经",1]},"达摩护体":{"t":"功效：战斗中临时提高自己或队友的气血上限\n使用条件：佛光普照技能达到30级\n消耗：30点魔法","u":["佛光普照",30]},"金刚护法":{"t":"功效：战斗中临时提高自己或队友的伤害力，技能等级较高后可作用于多人\n使用条件：佛光普照技能达到30级\n消耗：40点魔法","u":["佛光普照",30]},"韦陀护法":{"t":"功效：战斗中临时提高自己或队友的攻击力，技能达到一定等级后可用于多人\n使用条件：佛光普照技能等级达到20级以上\n消耗：35点魔法","u":["佛光普照",20]},"金刚护体":{"t":"功效：战斗中临时提高自己或队友的防御力，技能达到一定等级后可用于多人\n使用条件：佛光普照技能等级达到35级以上\n消耗：30点魔法","u":["佛光普照",35]},"一苇渡江":{"t":"功效：战斗中临时提高自己或队友的速度，技能达到一定等级后可用于多人\n使用条件：佛光普照技能等级达到30级以上\n消耗：30点魔法","u":["佛光普照",30]},"拈花妙指":{"t":"功效：平时状态下使用，为鞋子附加提升速度的临时效果，下线后效果消失\n使用条件：佛光普照技能达到35级\n消耗：和技能等级数相同的活力","u":["佛光普照",35]},"我佛慈悲":{"t":"功效：战斗中使用，可以复活死亡的队友\n使用条件：大慈大悲技能达到40级\n消耗：150点魔法","u":["大慈大悲",40]},"推拿":{"t":"功效：使用后可以恢复自身的气血和气血上限\n使用条件：岐黄之术技能达到10级\n消耗：50点魔法，非战斗时减半","u":["岐黄之术",10]},"活血":{"t":"功效：使用后可以恢复队友的气血和气血上限\n使用条件：岐黄之术技能达到25级\n消耗：70点魔法，非战斗时减半","u":["岐黄之术",25]},"推气过宫":{"t":"功效：使用后可以恢复多人的气血\n使用条件：岐黄之术技能达到35级\n消耗：100点魔法，非战斗时减半","u":["岐黄之术",35]},"妙手回春":{"t":"功效：使用后可以恢复多人的气血上限\n使用条件：岐黄之术技能达到40级\n消耗：80点魔法，非战斗时减半","u":["岐黄之术",40]},"救死扶伤":{"t":"功效：使用后可以恢复多人的气血和气血上限\n使用条件：岐黄之术技能达到50级\n消耗：150点魔法，非战斗时减半","u":["岐黄之术",50]},"解毒":{"t":"功效：使用后可以解除中毒的状态\n使用条件：岐黄之术技能达到15级\n消耗：40点魔法","u":["岐黄之术",15]},"舍生取义":{"t":"功效：将目标当前气血恢复到满\n使用条件：人物飞升且“岐黄之术”技能达到120级\n消耗：150点魔法，每次使用降低自身5%物理防御，3% 灵力","u":["岐黄之术",120]},"佛门普渡":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：渡世步技能达到1级\n消耗：10点气血和10点魔法","u":["渡世步",1]}},"skills":[{"name":"小乘佛法","main":true,"effect":"按技能等级提高灵力","desc":"","spells":["紫气东来"]},{"name":"金刚伏魔","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["佛法无边"]},{"name":"诵经","main":false,"effect":"","desc":"","spells":["唧唧歪歪"]},{"name":"佛光普照","main":false,"effect":"","desc":"","spells":["达摩护体","金刚护法","韦陀护法","金刚护体","一苇渡江","拈花妙指"]},{"name":"大慈大悲","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["我佛慈悲"]},{"name":"歧黄之术","main":false,"effect":"","desc":"","spells":["推拿","活血","推气过宫","妙手回春","救死扶伤","解毒","舍生取义"]},{"name":"渡世步","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["佛门普渡"]}]},{"name":"女儿村","abbr":"NE","spells":{"红袖添香":{"t":"功效：战斗中提升自己和队友的躲避力\n使用条件：倾国倾城技能达到20级\n消耗：30点魔法","u":["倾国倾城",20]},"楚楚可怜":{"t":"功效：停止行动并保护自己免受伤害\n使用条件：倾国倾城技能达到10级\n消耗：30点魔法","u":["倾国倾城",10]},"一笑倾城":{"t":"功效：封印对方多个目标的法术释放权\n使用条件：人物飞升且“倾国倾城”技能达到120级\n消耗：60点魔法","u":["倾国倾城",120]},"满天花雨":{"t":"功效：使用后增加自己的攻击力，并可能使对手中毒，效果最高累加三回合，持续到战斗结束\n使用条件：沉鱼落雁技能达到25级\n消耗：40点魔法","u":["沉鱼落雁",25]},"情天恨海":{"t":"功效：克制五庄观弟子的必杀技\n使用条件：沉鱼落雁技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["沉鱼落雁",25]},"雨落寒沙":{"t":"功效：消耗一定魔法对目标造成暗器伤害，技能每增加一级伤害效果增加1点，最多增加100点伤害\n使用条件：沉鱼落雁技能达到20级\n消耗：作用人数*10","u":["沉鱼落雁",20]},"莲步轻舞":{"t":"功效：令对手一定回合无法使用法术\n使用条件：闭月羞花技能达到30级\n消耗：40点魔法","u":["闭月羞花",30]},"如花解语":{"t":"功效：令对手一定回合无法使用物理攻击\n使用条件：闭月羞花技能达到20级\n消耗：35点魔法","u":["闭月羞花",20]},"似玉生香":{"t":"功效：令对手一定回合无法使用法术和物理攻击\n使用条件：闭月羞花技能等级达到40级以上\n消耗：50点魔法","u":["闭月羞花",40]},"娉婷嬝娜":{"t":"功效：使对手一定回合无法使用装备特技，且被动法宝将不会触发效果。\n使用条件：闭月羞花技能达到25级\n消耗：40点魔法","u":["闭月羞花",25]},"轻如鸿毛":{"t":"功效：暂时附加武器提升魔法上限的效果，下线后效果消失\n使用条件：香飘兰麝技能达到35级，人物等级达到30级\n消耗：和技能等级数相同的活力","u":["香飘兰麝",35]},"百毒不侵":{"t":"功效：解毒并在一定回合内避免中毒\n使用条件：玉质冰肌技能达到10级\n消耗：30点魔法","u":["玉质冰肌",10]},"移形换影":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：清歌妙舞技能达到1级\n消耗：10点气血和10点魔法","u":["清歌妙舞",1]},"飞花摘叶":{"t":"功效：吸取对方多人魔法为我方队员所使用\n使用条件：人物飞升且“清歌妙舞”技能达到120级\n消耗：60点魔法","u":["清歌妙舞",120]}},"skills":[{"name":"毒 经","main":true,"effect":"按技能等级提高伤害力","desc":"","spells":[]},{"name":"倾国倾城","main":false,"effect":"","desc":"","spells":["红袖添香","楚楚可怜","一笑倾城"]},{"name":"沉鱼落雁","main":false,"effect":"","desc":"","spells":["满天花雨","情天恨海","雨落寒沙"]},{"name":"闭月羞花","main":false,"effect":"","desc":"","spells":["莲步轻舞","如花解语","似玉生香","娉婷嬝娜"]},{"name":"香飘兰麝","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["轻如鸿毛"]},{"name":"玉质冰肌","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["百毒不侵"]},{"name":"清歌妙舞","main":false,"effect":"按技能等级提高速度","desc":"","spells":["移形换影","飞花摘叶"]}]},{"name":"天宫","abbr":"TG","spells":{"天神护体":{"t":"功效：战斗中提升自己的灵力\n使用条件：天罡气技能达到30级\n消耗：50点魔法","u":["天罡气",30]},"天神护法":{"t":"功效：在战斗中自动保护指定的伙伴\n使用条件：天罡气技能等级达到40级以上\n消耗：30点魔法","u":["天罡气",40]},"天诛地灭":{"t":"功效：克制地府弟子的必杀技\n使用条件：天罡气技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["天罡气",25]},"五雷轰顶":{"t":"功效：减少敌人25%当前气血及魔法，但最高不会超过自己等级×50，失败只减少5%的当前气血\n使用条件：天罡气技能达到35级\n消耗：50点MP","u":["天罡气",35]},"雷霆万钧":{"t":"功效：攻击性法术，使用后攻击对方多个目标\n使用条件：天罡气技能达到50级\n消耗：35点魔法/人","u":["天罡气",50]},"浩然正气":{"t":"功效：平时状态下使用，为衣服附加提升法术防御的临时效果，下线后效果消失\n使用条件：天罡气技能达到35级\n消耗：和技能等级数相同的活力","u":["天罡气",35]},"天雷斩":{"t":"功效：使用后可以给予敌人重击，并降低灵力。但自己也会减少物理防御力。\n使用条件：傲世诀技能达到25级\n消耗：30点魔法","u":["傲世诀",25]},"知己知彼":{"t":"功效：使用后可以得知对方的当前气血、魔法、五行属性和愤怒值\n使用条件：清明自在达到35级以上，如果在非战斗时使用，对方人物等级高于技能等级20级以上不能查看。\n消耗：80点魔法，非战斗时消耗300点魔法"},"宁心":{"t":"功效：解除并避免女儿村封类法术的影响\n使用条件：宁气诀技能达到20级\n消耗：30点魔法","u":["宁气诀",20]},"镇妖":{"t":"功效：使用它后可以使对手不能使用特技\n使用条件：乾坤塔技能达到30级\n消耗：45点魔法","u":["乾坤塔",30]},"错乱":{"t":"功效：令对手无法使用法术，并在物理攻击时出现目标偏差\n使用条件：乾坤塔技能达到50级\n消耗：60点魔法","u":["乾坤塔",50]},"百万神兵":{"t":"功效：令对方无法使用物理攻击\n使用条件：混天术技能达到40级\n消耗：60点魔法","u":["混天术",40]},"金刚镯":{"t":"功效：一定回合内降对方的武器伤害\n使用条件：人物飞升且“混天术”技能达到120级\n消耗：50点魔法","u":["混天术",120]},"腾云驾雾":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：云霄步技能达到1级\n消耗：10点气血和10点魔法","u":["云霄步",1]}},"skills":[{"name":"天罡气","main":true,"effect":"按技能等级提高伤害力","desc":"","spells":["天神护体","天神护法","天诛地灭","五雷轰顶","雷霆万钧","浩然正气"]},{"name":"傲世诀","main":false,"effect":"按技能等级提高HP上限","desc":"","spells":["天雷斩"]},{"name":"清明自在","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["知己知彼"]},{"name":"宁气诀","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["宁心"]},{"name":"乾坤塔","main":false,"effect":"","desc":"","spells":["镇妖","错乱"]},{"name":"混天术","main":false,"effect":"","desc":"","spells":["百万神兵","金刚镯"]},{"name":"云霄步","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["腾云驾雾"]}]},{"name":"龙宫","abbr":"LG","spells":{"解封":{"t":"功效：单次解除女儿村封类法术的影响\n使用条件：九龙诀技能达到30级\n消耗：60点魔法","u":["九龙诀",30]},"清心":{"t":"功效：使用后可以解除中毒的状态\n使用条件：九龙诀技能达到15级\n消耗：30点魔法","u":["九龙诀",15]},"二龙戏珠":{"t":"功效：施展法术攻击对方两个目标\n使用条件：人物飞升且“九龙诀”技能达到120级\n消耗：70点魔法","u":["九龙诀",120]},"神龙摆尾":{"t":"功效：持续一定回合的防御性法术，拥有该效果时施法者减少20%所承受的物理伤害。\n使用条件：人物飞升且“破浪诀”技能达到120级\n消耗：100点魔法","u":["破浪诀",120]},"龙卷雨击":{"t":"功效：施展法术攻击对方，技能达到一定等级后可攻击多人\n使用条件：呼风唤雨技能达到15级\n消耗：20点魔法，攻击多人时消耗增加","u":["呼风唤雨",15]},"龙腾":{"t":"功效：施展法术攻击对方单人\n使用条件：龙腾技能达到50级\n消耗：30点魔法","u":["龙腾",50]},"逆鳞":{"t":"功效：战斗中增加自己的伤害力\n使用条件：逆鳞技能达到30级\n消耗：40点魔法","u":["逆鳞",30]},"乘风破浪":{"t":"功效：战斗中增加自己或队友的躲避力\n使用条件：游龙术技能达到20级\n消耗：40点魔法","u":["游龙术",20]},"水遁":{"t":"功效：平时或战斗中使用，可以瞬间回到自己的门派\n使用条件：游龙术技能达到1级\n消耗：战斗时消耗当前所有魔法，非战斗时消耗10点气血、魔法","u":["游龙术",1]},"龙吟":{"t":"功效：使用后可以减少对方全体队员一定的气血和魔法值\n使用条件：龙附技能达到30级\n消耗：30点魔法","u":["龙附",30]},"龙啸九天":{"t":"功效：克制盘丝洞弟子的必杀技\n使用条件：龙附技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["龙附",25]},"龙附":{"t":"功效：暂时提高武器的伤害力，下线后效果消失\n使用条件：龙附技能达到35级，人物等级达到30级\n消耗：和技能等级数相同的活力","u":["龙附",35]}},"skills":[{"name":"九龙诀","main":true,"effect":"按技能等级提高灵力","desc":"","spells":["解封","清心","二龙戏珠"]},{"name":"破浪诀","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["神龙摆尾"]},{"name":"呼风唤雨","main":false,"effect":"","desc":"","spells":["龙卷雨击"]},{"name":"龙腾","main":false,"effect":"","desc":"","spells":["龙腾"]},{"name":"逆鳞","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["逆鳞"]},{"name":"游龙术","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["乘风破浪","水遁"]},{"name":"龙附","main":false,"effect":"","desc":"","spells":["龙吟","龙啸九天","龙附"]}]},{"name":"五庄观","abbr":"WZ","spells":{"驱魔":{"t":"功效：解除并避免方寸山封类法术的影响\n使用条件：周易学技能达到25级\n消耗：45点魔法","u":["周易学",25]},"驱尸":{"t":"功效：解除各类中毒状态\n使用条件：周易学技能达到20级\n消耗：40点魔法","u":["周易学",20]},"烟雨剑法":{"t":"功效：使用后可以连续攻击对手两次\n使用条件：潇湘仙雨技能达到25级，当前气血高于上限的60%\n消耗：50点魔法","u":["潇湘仙雨",25]},"飘渺式":{"t":"功效：作用为当目标为怪物时，通过法术启动物理攻击对方多个目标\n使用条件：潇湘仙雨技能达到20级\n消耗：作用人数*30","u":["潇湘仙雨",20]},"日月乾坤":{"t":"功效：使敌方单个目标无法使用普通攻击、法术和特技，持续5回合。成功率受技能等级与目标等级之差影响。\n使用条件：乾坤袖技能达到20级，不能用在某些特殊任务的战斗中\n使用成功消耗：35点魔法 使用失败消耗：10点魔法","u":["乾坤袖",20]},"天地同寿":{"t":"功效：为目标临时加上一个防御护罩，吸收全部法术伤害，降低目标50%防御效果，且所受物理伤害会加倍\n使用条件：人物飞升且“乾坤袖”技能达到120级\n消耗：50点魔法","u":["乾坤袖",120]},"乾坤妙法":{"t":"功效：牺牲自己的物理防御来保护队友，使其不受任何负面影响，但也无法进行任何行动\n使用条件：人物飞升且“乾坤袖”技能达到120级\n消耗：50点魔法","u":["乾坤袖",120]},"炼气化神":{"t":"功效：一定回合内补充自己和队友的魔法\n使用条件：修仙术技能达到30级\n消耗：30点气血","u":["修仙术",30]},"生命之泉":{"t":"功效：一定回合内补充自己和队友的气血\n使用条件：修仙术技能达到30级\n消耗：每作用于一人消耗30点MP","u":["修仙术",30]},"太极生化":{"t":"功效：克制狮驼岭弟子的必杀技\n使用条件：修仙术技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["修仙术",25]},"一气化三清":{"t":"功效：平时状态下使用，为衣服附加提升魔力的临时效果，下线后效果消失\n使用条件：修仙术技能达到35级\n消耗：和技能等级数相同的活力","u":["修仙术",35]},"三花聚顶":{"t":"功效：消耗一定的气血来补充魔法，非战斗时每2分钟使用一次\n使用条件：明性修身技能达到30级\n消耗：30点气血","u":["明性修身",30]},"斗转星移":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：七星遁技能达到1级\n消耗：10点气血和10点魔法","u":["七星遁",1]}},"skills":[{"name":"周易学","main":true,"effect":"按技能等级提高MP上限","desc":"","spells":["驱魔","驱尸"]},{"name":"潇湘仙雨","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["烟雨剑法","飘渺式"]},{"name":"乾坤袖","main":false,"effect":"","desc":"","spells":["日月乾坤","天地同寿","乾坤妙法"]},{"name":"修仙术","main":false,"effect":"","desc":"","spells":["炼气化神","生命之泉","太极生化","一气化三清"]},{"name":"混元道果","main":false,"effect":"按技能等级提高灵力","desc":"","spells":[]},{"name":"明性修身","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["三花聚顶"]},{"name":"七星遁","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["斗转星移"]}]},{"name":"普陀山","abbr":"PT","spells":{"自在心法":{"t":"功效：清除己方队员身上普渡众生效果，同时将该回合剩余回合可增加的当前气血与气血上限结算进行回复。\n使用条件：灵性技能达到60级\n消耗：30点魔法","u":["灵性",60]},"紧箍咒":{"t":"功效：一定回合内减少对方的气血和气血上限\n使用条件：观音咒技能达到30级\n消耗：50点魔法","u":["观音咒",30]},"杨柳甘露":{"t":"功效：使用后可以复活已经死亡的队友，可以复活处在“锢魂术”或者“死亡召唤”状态下剩余回合小于等于2的队友。\n使用条件：观音咒技能达到20级\n消耗：150点魔法","u":["观音咒",20]},"日光华":{"t":"功效：施展法术攻击单人，效果由技能等级决定，不受双方灵力影响，对方防御属性为木时同时降低气血上限；如果目标为NPC，则作用多人\n使用条件：五行学技能达到10级\n消耗：50点魔法","u":["五行学",10]},"靛沧海":{"t":"功效：施展法术攻击单人，效果由技能等级决定，不受双方灵力影响，对方防御属性为火时同时降低气血上限；对普通怪物（不包括玩家、召唤兽和BOSS级怪物）的伤害有增强效果；如果目标为NPC，则作用多人\n使用条件：五行学技能达到11级\n消耗：50点魔法","u":["五行学",11]},"巨岩破":{"t":"功效：施展法术攻击单人，效果由技能等级决定，不受双方灵力影响，对方防御属性为水时同时降低气血上限；对普通怪物（不包括玩家、召唤兽和BOSS级怪物）的伤害有增强效果；如果目标为NPC，则作用多人\n使用条件：五行学技能达到12级\n消耗：50点魔法","u":["五行学",12]},"苍茫树":{"t":"功效：施展法术攻击单人，效果由技能等级决定，不受双方灵力影响，对方防御属性为土时同时降低气血上限；对普通怪物（不包括玩家、召唤兽和BOSS级怪物）的伤害有增强效果；如果目标为NPC，则作用多人\n使用条件：五行学技能达到13级\n消耗：50点魔法","u":["五行学",13]},"地裂火":{"t":"功效：施展法术攻击单人，效果由技能等级决定，不受双方灵力影响，对方防御属性为金时同时降低气血上限；对普通怪物（不包括玩家、召唤兽和BOSS级怪物）的伤害有增强效果；如果目标为NPC，则作用多人\n使用条件：五行学技能达到14级\n消耗：50点魔法","u":["五行学",14]},"普渡众生":{"t":"功效：恢复队友的气血并治疗伤势\n使用条件：金刚经技能达到15级\n消耗：50点魔法","u":["金刚经",15]},"灵动九天":{"t":"功效：为队友临时增加灵力\n使用条件：人物飞升且“金刚经”技能达到120级\n消耗：30点魔法","u":["金刚经",120]},"莲华妙法":{"t":"功效：平时状态下使用，为项链附加提升法术伤害的临时效果，下线后效果消失\n使用条件：金刚经技能达到35级\n消耗：和技能等级数相同的活力","u":["金刚经",35]},"五行错位":{"t":"功效：克制女儿村弟子的必杀技\n使用条件：五行扭转技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["五行扭转",25]},"颠倒五行":{"t":"功效：为队友临时增加四系法术吸收率及法术闪避率\n使用条件：人物飞升且“五行扭转”技能达到120级\n消耗：80点魔法","u":["五行扭转",120]},"坐莲":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：莲花宝座技能达到1级\n消耗：10点气血和10魔法","u":["莲花宝座",1]}},"skills":[{"name":"灵 性","main":true,"effect":"按技能等级提高灵力","desc":"","spells":["自在心法"]},{"name":"护法金刚","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":[]},{"name":"观音咒","main":false,"effect":"","desc":"","spells":["紧箍咒","杨柳甘露"]},{"name":"五行学说","main":false,"effect":"","desc":"","spells":["日光华","靛沧海","巨岩破","苍茫树","地裂火"]},{"name":"金刚经","main":false,"effect":"","desc":"","spells":["普渡众生","灵动九天","莲华妙法"]},{"name":"五行扭转","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["五行错位","颠倒五行"]},{"name":"莲花宝座","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["坐莲"]}]},{"name":"阴曹地府","abbr":"DF","spells":{"堪察令":{"t":"功效：鉴定头盔、饰品、腰带、靴子等类装备，学习后也可在长安书店制作相应等级的“灵宝图鉴”。\n使用条件：灵通术技能达到5级\n消耗：一定的活力，视装备等级而定","u":["灵通术",5]},"寡欲令":{"t":"功效：解除并避免盘丝洞封类法术的影响。\n使用条件：灵通术技能达到30级\n消耗：50点魔法","u":["灵通术",30]},"魂飞魄散":{"t":"功效：使用后驱散目标因门派法术获得的所有良性状态（变身除外）。\n使用条件：“六道轮回”技能达到50级\n消耗：40点魔法","u":["六道轮回",50]},"阎罗令":{"t":"功效：可攻击多人，减少对手的气血和气血上限，夜晚攻击效果高于白天。对怪物使用时，伤害效果额外提高100%\n使用条件：幽冥术技能达到25级\n消耗：20点魔法，作用于多人时消耗增加","u":["幽冥术",25]},"锢魂术":{"t":"功效：使用成功后可使目标5个回合内在死亡状态下无法被复活。\n使用条件：幽冥术技能达到75级\n消耗：50点魔法","u":["幽冥术",75]},"黄泉之息":{"t":"功效：攻击对方单人，并减少其一定的速度，夜间使用效果调整为白天的130%。\n使用条件：人物飞升且“幽冥术”技能达到120级\n消耗：50点魔法","u":["幽冥术",120]},"判官令":{"t":"功效：攻击对方单人，减少对手的气血和魔法，效果由技能等级决定，不受双方灵力影响，黑夜使用效果为标准的130%\n使用条件：拘魂诀技能达到20级\n消耗：20点魔法","u":["拘魂诀",20]},"还阳术":{"t":"功效：复活倒地的队友，并增加其攻击力，降低其防御。\n使用条件：人物飞升且“拘魂诀”技能达到120级\n消耗：150点魔法","u":["拘魂诀",120]},"尸气漫天":{"t":"功效：平时状态下使用，为帽子附加提升耐力的临时效果，下线后效果消失\n使用条件：拘魂诀技能达到35级\n消耗：和技能等级数相同的活力","u":["拘魂诀",35]},"幽冥鬼眼":{"t":"功效：使用后可以看到隐身的目标并增加10%的抗封效果。\n使用条件：九幽阴魂技能达到30级\n消耗：20点魔法","u":["九幽阴魂",30]},"冤魂不散":{"t":"功效：克制大唐官府弟子的必杀技。\n使用条件：九幽阴魂技能达到25级\n消耗：150点愤怒值","u":["九幽阴魂",25]},"尸腐毒":{"t":"功效：令对手中“尸毒”。\n使用条件：尸腐恶技能达到20级\n消耗：40点魔法","u":["尸腐恶",20]},"修罗隐身":{"t":"功效：战斗中隐藏自己或队友的身形，令对手无法攻击，隐身状态下不能施展法术。\n使用条件：尸腐恶技能达到20级，白天才可使用\n消耗：150点魔法，对自己使用每回合消耗施法者15点魔法，对队友使用每回合消耗施法者10点魔法。","u":["尸腐恶",20]},"杳无音讯":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派。\n使用条件：无常步技能达到1级\n消耗：10点气血和10点魔法","u":["无常步",1]}},"skills":[{"name":"灵通术","main":true,"effect":"","desc":"","spells":["堪察令","寡欲令"]},{"name":"六道轮回","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["魂飞魄散"]},{"name":"幽冥术","main":false,"effect":"","desc":"","spells":["阎罗令","锢魂术","黄泉之息"]},{"name":"拘魂诀","main":false,"effect":"","desc":"","spells":["判官令","还阳术","尸气漫天"]},{"name":"九幽阴魂","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["幽冥鬼眼","冤魂不散"]},{"name":"尸腐恶","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["尸腐毒","修罗隐身"]},{"name":"无常步","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["杳无音讯"]}]},{"name":"魔王寨","abbr":"MW","spells":{"魔王护持":{"t":"功效：暂时附加武器提高HP上限的效果，下线后效果消失\n使用条件：牛逼神功技能达到35级，人物等级达到30级\n消耗：和技能等级数相同的活力","u":["牛逼神功",35]},"飞砂走石":{"t":"功效：使用后可以攻击对方多个对象\n使用条件：火云术技能达到30级\n消耗：30点魔法，攻击多人时消耗增加","u":["火云术",30]},"三昧真火":{"t":"功效：使用后可以攻击对方单个对象\n使用条件：火云术技能达到20级\n消耗：30点魔法","u":["火云术",20]},"火甲术":{"t":"功效：此状态维持期间遭受普通物理攻击、法术时将自动使用三味真火进行反击。\n使用条件：人物飞升且“火云术”技能达到120级\n消耗：60点魔法","u":["火云术",120]},"牛劲":{"t":"功效：战斗中暂时提高自己的法术伤害力\n使用条件：火牛阵技能达到30级。\n消耗：20点魔法","u":["火牛阵",30]},"踏山裂石":{"t":"功效：克制化生寺弟子的必杀技\n使用条件：火牛阵 技能达到25级，人物等级达到20级\n消耗：150点愤怒值"},"无敌牛虱":{"t":"功效：召唤牛妖前来协助战斗\n使用条件：牛虱阵技能达到25级\n消耗：40点魔法","u":["牛虱阵",25]},"无敌牛妖":{"t":"功效：召唤使用法术的牛妖前来协助战斗\n使用条件：牛虱阵技能达到25级\n消耗：40点魔法","u":["牛虱阵",25]},"摇头摆尾":{"t":"功效：攻击目标时随机触发三昧真火或者飞砂走石，随后施放一个持续燃烧的火焰，一定回合内造成伤害\n使用条件：人物飞升且“牛虱阵”技能达到120级\n消耗：50点魔法","u":["牛虱阵",120]},"魔王回首":{"t":"功效：使用后可以在受到物理攻击的时候自动反击\n使用条件：回身击技能达到30级\n消耗：30点魔法","u":["回身击",30]},"牛屎遁":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：裂石步技能达到1级\n消耗：10点气血和10点魔法","u":["裂石步",1]}},"skills":[{"name":"牛逼神功","main":true,"effect":"","desc":"","spells":["魔王护持"]},{"name":"震天诀","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":[]},{"name":"火云术","main":false,"effect":"","desc":"","spells":["飞砂走石","三昧真火","火甲术"]},{"name":"火牛阵","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["牛劲","踏山裂石"]},{"name":"牛虱阵","main":false,"effect":"","desc":"","spells":["无敌牛虱","无敌牛妖","摇头摆尾"]},{"name":"回身击","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["魔王回首"]},{"name":"裂石步","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["牛屎遁"]}]},{"name":"狮驼岭","abbr":"STL","spells":{"变身":{"t":"功效：临时提高伤害力，是使用象形、鹰击、狮搏和连环击的前提\n使用条件：魔兽神功技能达到20级\n消耗：20点魔法","u":["魔兽神功",20]},"魔兽啸天":{"t":"功效：克制天宫弟子的必杀技\n使用条件：魔兽神功技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["魔兽神功",25]},"象形":{"t":"功效：攻击单人并令其下回合无法行动，用后次回合无法使用法术\n使用条件：生死搏技能达到20级，变身后使用，用后取消变身效果\n消耗：50点魔法","u":["生死搏",20]},"鹰击":{"t":"功效：攻击对方多人，使用后需要休息1回合\n使用条件：生死搏技能达到30级，变身状态下才能使用，不允许连续两回合使用。\n消耗：30点魔法，攻击多人时消耗增加","u":["生死搏",30]},"狮搏":{"t":"功效：以高于平时的伤害力攻击对方单人\n使用条件：生死搏技能达到20级，变身状态下才能使用\n消耗：30点魔法","u":["生死搏",20]},"天魔解体":{"t":"功效：使用后持续一定回合数将自身的物理防御降低50%，防御值的10%转化为临时伤害，死亡后效果清除。\n使用条件：人物飞升且“生死搏”技能达到120级\n消耗：30点魔法，复活后的当前回合无法使用","u":["生死搏",120]},"威慑":{"t":"功效：令怪物或玩家召唤兽无法行动，不能对玩家使用\n使用条件：训兽诀技能达到15级\n消耗：20点魔法","u":["训兽诀",15]},"定心术":{"t":"功效：战斗中临时提高自己的灵力\n使用条件：阴阳二气诀技能达到40级\n消耗：40点魔法","u":["阴阳二气诀",40]},"魔息术":{"t":"功效：一定回合内恢复自身的魔法\n使用条件：人物飞升且“阴阳二气诀”技能达到120级\n消耗：30点气血","u":["阴阳二气诀",120]},"连环击":{"t":"功效：疯狂地连续的攻击敌人\n使用条件：狂兽诀技能达到30级，变身后使用。使用后需要休息一回合并取消变身效果\n消耗：可连击次数×30点魔法","u":["狂兽诀",30]},"神力无穷":{"t":"功效：平时状态下使用，为腰带附加提升愤怒值的临时效果，下线后效果消失\n使用条件：狂兽诀技能达到35级\n消耗：和技能等级数相同的活力","u":["狂兽诀",35]},"振翅千里":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：大鹏展翅技能达到1级\n消耗：10点气血和10点魔法","u":["大鹏展翅",1]},"极度疯狂":{"t":"功效：受到物理攻击时会自动反击敌人\n使用条件：魔兽反噬技能达到20级\n消耗：30点魔法","u":["魔兽反噬",20]}},"skills":[{"name":"魔兽神功","main":true,"effect":"","desc":"","spells":["变身","魔兽啸天"]},{"name":"生死搏","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["象形","鹰击","狮搏","天魔解体"]},{"name":"训兽诀","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["威慑"]},{"name":"阴阳二气诀","main":false,"effect":"","desc":"","spells":["定心术","魔息术"]},{"name":"狂兽诀","main":false,"effect":"","desc":"","spells":["连环击","神力无穷"]},{"name":"大鹏展翅","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["振翅千里"]},{"name":"魔兽反噬","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["极度疯狂"]}]},{"name":"盘丝洞","abbr":"PS","spells":{"盘丝舞":{"t":"功效：暂时提高武器的防御效果，下线后效果消失\n使用条件：蛛丝阵法技能达到35级，人物等级达到30级\n消耗：和技能等级数相同的活力","u":["蛛丝阵法",35]},"夺命蛛丝":{"t":"功效：克制方寸山弟子的必杀技\n使用条件：蛛丝阵法技能达到25级，人物等级达到20级\n消耗：150点愤怒值","u":["蛛丝阵法",25]},"含情脉脉":{"t":"功效：令对手一定回合内无法使用物理攻击和法术\n使用条件：迷情大法技能达到30级\n消耗：50点魔法","u":["迷情大法",30]},"瘴气":{"t":"功效：临时降低对手接受治疗的效果\n使用条件：人物飞升且“迷情大法”技能达到120级\n消耗：30点魔法 / 人","u":["迷情大法",120]},"魔音摄魂":{"t":"功效：令对手一定回合内无法恢复气血和疗伤\n使用条件：天外魔音技能达到45级\n消耗：40点魔法","u":["天外魔音",45]},"勾魂":{"t":"功效：恢复自身气血，减少对方一定的气血\n使用条件：秋波暗送技能达到20级\n消耗：40点魔法","u":["秋波暗送",20]},"摄魄":{"t":"功效：恢复自身魔法，减少对方一定的魔法\n使用条件：秋波暗送技能达到20级\n消耗：35点魔法","u":["秋波暗送",20]},"盘丝阵":{"t":"功效：可以提升自身的防御力\n使用条件：盘丝大法技能达到20级\n消耗：40点魔法","u":["盘丝大法",20]},"复苏":{"t":"功效：解除并避免天宫封类法术的影响\n使用条件：盘丝大法技能达到20级\n消耗：60点魔法","u":["盘丝大法",20]},"天罗地网":{"t":"功效：每次攻击时有一定几率令对手在一定回合内无法使用物理攻击,如果目标为NPC，作用人数随技能等级提升增加，作用人数公式为技能等级/30+1，最多3人。对普通怪物（不包括玩家、召唤兽和BOSS级怪物）的伤害有增强效果。\n使用条件：移形换影技能达到15级\n消耗：30点魔法，攻击多人时消耗增加","u":["移形换影",15]},"天蚕丝":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派\n使用条件：移形换影技能达到1级\n消耗：10点气血和10点魔法","u":["移形换影",1]},"幻镜术":{"t":"功效：持续状态时会将一些法术攻击转移至对方随机队员\n使用条件：人物飞升且“移形换影”技能达到120级\n消耗：50点魔法","u":["移形换影",120]},"姐妹同心":{"t":"功效：战斗中使用，可以减少对手的魔法值\n使用条件：姊妹相随技能达到20级\n消耗：50点魔法","u":["姊妹相随",20]}},"skills":[{"name":"蛛丝阵法","main":true,"effect":"按技能等级提高防御力","desc":"","spells":["盘丝舞","夺命蛛丝"]},{"name":"迷情大法","main":false,"effect":"","desc":"","spells":["含情脉脉","瘴气","魔音摄魂"]},{"name":"秋波暗送","main":false,"effect":"按技能等级提高命中","desc":"","spells":["勾魂","摄魄"]},{"name":"天外魔音","main":false,"effect":"按技能等级提高灵力","desc":"","spells":[]},{"name":"盘丝大法","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["盘丝阵","复苏"]},{"name":"移形换影","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["天罗地网","天蚕丝","幻镜术"]},{"name":"姊妹相随","main":false,"effect":"","desc":"","spells":["姐妹同心"]}]},{"name":"凌波城","abbr":"LBC","spells":{"不动如山":{"t":"功效：使用后减少自身受到的法术伤害与物理伤害。 \n使用条件：“九转玄功”技能达到25级。 \n使用间隔：2回合。 \n消耗：150点MP。","u":["九转玄功",25]},"碎星诀":{"t":"功效：提升自己或队友的物理伤害结果，持续一定回合。 不能与镇魂诀同时存在。 \n使用条件：“武神显圣”技能达到30级。 \n消耗：30点MP。","u":["武神显圣",30]},"镇魂诀":{"t":"功效：提升自己或者队友的必杀几率，持续一定回合。 不能与碎星诀同时存在。 \n使用条件：“武神显圣”技能达到120级，且人物飞升。 \n消耗：5%的当前气血","u":["武神显圣",120]},"穿云破空":{"t":"功效：为腰带附加提升物理攻击伤害结果的临时效果。 \n使用条件：“啸傲”技能达到35级，人物等级达到30级。 \n消耗：和技能等级相同的活力","u":["啸傲",35]},"裂石":{"t":"功效：临时提升必杀几率对单个敌人进行物理攻击，增加1点战意值。 “气吞山河”技能达到25级。 \n消耗：50点MP。","u":["气吞山河",25]},"断岳势":{"t":"功效：临时提升必杀几率对单个敌人进行2次物理攻击。 \n使用条件：“气吞山河”技能达到35级。 \n消耗：50点MP，1点战意值。","u":["气吞山河",35]},"天崩地裂":{"t":"功效：临时提升必杀几率对单个敌人进行3次物理攻击。 最后一次攻击不会被保护。 \n使用条件：“气吞山河”技能达到45级。 \n消耗：50点MP，3点战意值。","u":["气吞山河",45]},"浪涌":{"t":"功效：根据对方防御值临时提升一定伤害力对单个敌人进行物理攻击。 目标为怪物时增加作用人数。攻击怪物个数=技能等级/35+1。最多3个。 增加1点战意值。 \n使用条件：“气吞山河”技能达到25级。 \n消耗：个数*20+10点MP","u":["气吞山河",25]},"惊涛怒":{"t":"功效：根据对方防御值临时提升一定伤害力对多个敌人进行物理攻击。 攻击个数=技能等级/35+1,最多4人。 \n使用条件：“气吞山河”技能达到35级。 \n消耗：1点战意，个数*20+10点MP。","u":["气吞山河",35]},"翻江搅海":{"t":"功效：根据对方防御值临时提升一定伤害力对多个敌人进行物理攻击。 攻击个数=技能等级/40+2，最多6人。 \n使用条件：“气吞山河”技能达到45级。 \n消耗：3点战意，个数*20+10点MP","u":["气吞山河",45]},"腾雷":{"t":"功效：对目标造成伤害并有机会使目标受技能恢复效果降低。 \n使用条件：“诛魔”技能达到120级，且人物飞升。 \n消耗：60点MP，1点战意值。","u":["诛魔",120]},"指地成钢":{"t":"功效：克制无底洞弟子的必杀技。 \n使用条件：“诛魔”技能达到25级，人物等级达到20级。 \n消耗：150点SP。","u":["诛魔",25]},"无穷妙道":{"t":"功效：一定几率解除无底洞封印法术。 \n使用条件：“法天象地”技能达到30级。 \n消耗：60点MP。","u":["法天象地",30]},"纵地金光":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派。 \n使用条件：“法天象地”技能达到1级。 \n消耗：10点HP和10点MP","u":["法天象地",1]}},"skills":[{"name":"天地无极","main":true,"effect":"进入战斗获得2点战意，用于发动门派法术。战意点数将提高自己的伤害力。战意最多累计6点，战斗中死亡时减半。","desc":"","spells":[]},{"name":"九转玄功","main":false,"effect":"","desc":"","spells":["不动如山"]},{"name":"武神显圣","main":false,"effect":"","desc":"","spells":["碎星诀","镇魂诀"]},{"name":"啸傲","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["穿云破空"]},{"name":"气吞山河","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["裂石","断岳势","天崩地裂","浪涌","惊涛怒","翻江搅海"]},{"name":"诛魔","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["腾雷","指地成钢"]},{"name":"法天象地","main":false,"effect":"按技能等级提高命中","desc":"","spells":["无穷妙道","纵地金光"]}]},{"name":"无底洞","abbr":"WDD","spells":{"移魂化骨":{"t":"功效：消耗自身气血使目标获得吸血效果，持续一定回合。 \n使用条件：“枯骨心法”技能达到20级，当前气血≥最大气血值×30%\n消耗：最大气血的10%","u":["枯骨心法",20]},"夺魄令":{"t":"功效：令目标一定回合内无法使用法术。 \n使用条件：“阴风绝章”技能达到25级。\n消耗：30点MP。","u":["阴风绝章",25]},"煞气诀":{"t":"功效：使目标一定回合无法做部分行动（禁止使用物理、法术、特技、法宝、物品），并且该目标不会受到攻击。可作用于敌人或队友，不能作用于自己。使用后2回合内降低自己的速度。成功率略低于夺魄令，敌方已被煞气诀封印的数量越多成功率越低。 \n使用条件：“阴风绝章”技能达到30级。 \n消耗：50点MP。","u":["阴风绝章",30]},"惊魂掌":{"t":"功效：使用后使对手在持续回合内无法被他人保护（天神护法、指令保护）。 \n使用条件：“阴风绝章”技能达到50级。 \n消耗：50点MP。","u":["阴风绝章",50]},"摧心术":{"t":"功效：使敌方2个目标速度降低，持续一定回合。 \n使用条件：“阴风绝章”技能达到120级，且人物飞升。 \n消耗：100点MP。","u":["阴风绝章",120]},"夺命咒":{"t":"功效：使用固定伤害攻击对方多个NPC，攻击玩家或召唤兽时只能攻击1个目标。 攻击NPC个数=技能等级/35+1,最多5人。 \n使用条件：“鬼蛊灵蕴”技能达到35级。 \n消耗：20点MP，作用多人时消耗增加","u":["鬼蛊灵蕴",35]},"明光宝烛":{"t":"功效：使己方多人一定回合内承受的物理伤害结果减少。 \n使用条件：“燃灯灵宝”技能达到35级。 \n消耗：100点MP。","u":["燃灯灵宝",35]},"金身舍利":{"t":"功效：使己方多人一定回合内承受的法术伤害结果减少。 \n使用条件：“燃灯灵宝”技能达到120级，且人物飞升。 \n消耗：100点MP。","u":["燃灯灵宝",120]},"地涌金莲":{"t":"功效：恢复自己或者队友的气血与气血上限。 \n使用条件：“地冥妙法”技能达到20级，当前气血≥最大气血值×5%。 \n消耗：50点MP，最大气血的3%","u":["地冥妙法",20]},"万木凋枯":{"t":"功效：克制神木林弟子的技能 \n使用条件：“地冥妙法”技能达到25级，人物等级达到20级。 \n消耗：150点SP","u":["地冥妙法",25]},"元阳护体":{"t":"功效：为武器增加临时效果，临时提升气血恢复效果 \n使用条件：“混元神功”技能达到35级，人物等级达到30级。 \n消耗：和技能等级相同的活力","u":["混元神功",35]},"遁地术":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派。 \n使用条件：“秘影迷踪”技能达到1级。 \n消耗：10点HP和10点MP","u":["秘影迷踪",1]}},"skills":[{"name":"枯骨心法","main":true,"effect":"","desc":"","spells":["移魂化骨"]},{"name":"阴风绝章","main":false,"effect":"","desc":"","spells":["夺魄令","煞气诀","惊魂掌","摧心术"]},{"name":"鬼蛊灵蕴","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["夺命咒"]},{"name":"燃灯灵宝","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["明光宝烛","金身舍利"]},{"name":"地冥妙法","main":false,"effect":"","desc":"","spells":["地涌金莲","万木凋枯"]},{"name":"混元神功","main":false,"effect":"按技能等级提伤害力","desc":"","spells":["元阳护体"]},{"name":"秘影迷踪","main":false,"effect":"按技能等级提高速度","desc":"","spells":["遁地术"]}]},{"name":"神木林","abbr":"SML","spells":{"落叶萧萧":{"t":"功效：使用法术攻击敌方多个目标。 攻击个数=技能等级/35+1,最多5人。 \n使用条件：“瞬息万变”技能达到35级。 \n消耗：30点MP，作用多人时消耗增加","u":["瞬息万变",35]},"荆棘舞":{"t":"功效：使用法术攻击敌方单体目标，造成较高伤害。 \n使用条件：“万灵诸念”技能达到20级。 \n消耗：30点MP。","u":["万灵诸念",20]},"尘土刃":{"t":"功效：使用法术攻击敌方单体目标，并使目标损失一定HP上限。 \n使用条件：“万灵诸念”技能达到20级。 \n消耗：30点MP。","u":["万灵诸念",20]},"冰川怒":{"t":"功效：使用法术攻击敌方单体目标。 当攻击召唤兽时，有一定概率冻结目标。 \n使用条件：“万灵诸念”技能达到20级。 \n消耗：30点MP。","u":["万灵诸念",20]},"雾杀":{"t":"功效：使用法术攻击敌方单人目标，对敌人造成持续毒性伤害。 \n使用条件：“巫咒”技能达到40级。 \n消耗：50点MP。","u":["巫咒",40]},"血雨":{"t":"功效：消耗自身气血，对敌人单体目标造成大量伤害。 使用后，自己下回合无法使用法术。 \n使用条件：“巫咒”技能达到120级，且人物飞升，当前气血≥最大气血值*50% \n消耗：20%最大气血上限的当前气血","u":["巫咒",120]},"星月之惠":{"t":"功效：回复自身HP。 \n使用条件：“万物轮转”技能达到35级。 \n消耗：50点MP。","u":["万物轮转",35]},"炎护":{"t":"功效：抵御50%的气血伤害，每抵御1点伤害消耗1点MP。 \n使用条件：“天人庇护”技能达到50级。 \n消耗：30点MP。","u":["天人庇护",50]},"叶隐":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派。 \n使用条件：“天人庇护”技能达到1级。 \n消耗：10点HP和10点MP","u":["天人庇护",1]},"神木呓语":{"t":"功效：为鞋子临时增加法术伤害结果(含固定伤害类法术及暗器)。 \n使用条件：“神木恩泽”技能达到35级，人物等级达到30级。 \n消耗：和技能等级相同的活力","u":["神木恩泽",35]},"蜜润":{"t":"功效：增加己方多人的法术伤害力。 \n使用条件：“驭灵咒”技能达到120级，且人物飞升。 \n消耗：25点MP，作用多人时消耗增加","u":["驭灵咒",120]},"蝼蚁蚀天":{"t":"功效：克制凌波城弟子的必杀技。 \n使用条件：“驭灵咒”技能达到25级，人物等级达到20级。 \n消耗：150点SP","u":["驭灵咒",25]}},"skills":[{"name":"瞬息万变","main":true,"effect":"","desc":"","spells":["落叶萧萧"]},{"name":"万灵诸念","main":false,"effect":"按技能等级提高灵力","desc":"","spells":["荆棘舞","尘土刃","冰川怒"]},{"name":"巫咒","main":false,"effect":"按技能等级提高伤害力","desc":"","spells":["雾杀","血雨"]},{"name":"万物轮转","main":false,"effect":"按技能等级提高防御力","desc":"","spells":["星月之惠"]},{"name":"天人庇护","main":false,"effect":"按技能等级提高躲避力","desc":"","spells":["炎护","叶隐"]},{"name":"神木恩泽","main":false,"effect":"","desc":"","spells":["神木呓语"]},{"name":"驭灵咒","main":false,"effect":"按技能等级提高MP上限","desc":"","spells":["蜜润","蝼蚁蚀天"]}]},{"name":"女魃墓","abbr":"NBM","spells":{"炽火流离":{"t":"简介：以炽热的火焰灼烧对手，吸噬其神魂\n功效：对单个敌方目标造成伤害并恢复自身生命\n使用条件：“天罚之焰”技能达到10级\n消耗：30点魔法","u":["天罚之焰",10]},"极天炼焰":{"t":"简介：天火煌煌，腾焰飞芒，极天之势，可焚万物\n功效：克制天机城弟子的必杀技，使用后需要休息1回合，成功率受技能等级与目标等级之差影响\n使用条件：“天罚之焰”技能达到25级\n消耗：150点愤怒","u":["天罚之焰",25]},"谜毒之缚":{"t":"简介：梦魇化为毒魅紧紧盘绕对手，使之无法呼吸\n功效：使目标造成的伤害和治疗降低，可叠加6层，作用目标数=技能等级/40+1，最多5个\n使用条件：“煌火无明”技能达到15级\n消耗：(30+10*作用目标数)点魔法","u":["煌火无明",15]},"诡蝠之刑":{"t":"简介：诡蝠振翅，阴风缭绕，见之皆毛骨悚然\n功效：使目标造成伤害时受到反噬，可叠加6层，作用目标数=技能等级/40+1，最多5个\n使用条件：“煌火无明”技能达到10级\n消耗：(30+10*作用目标数)点魔法","u":["煌火无明",10]},"怨怖之泣":{"t":"简介：幽怨的哀哭绕梁不绝，令人魂悸而魄动\n功效：使目标增益状态更快消失，负面状态持续时间延长，可叠加6层，作用目标数=技能等级/40+1，最多5个\n使用条件：“煌火无明”技能达到30级\n消耗：(30+10*作用目标数)点魔法","u":["煌火无明",30]},"誓血之祭":{"t":"简介：歃血为祭，唤天魔之哮，可惊天地\n功效：对目标造成大量伤害并诅咒对方，使用后需休息一回合\n使用条件：“煌火无明”技能达到40级当前气血≥最大气血*50%\n消耗：50点魔法","u":["煌火无明",40]},"唤灵·魂火":{"t":"简介：怨之极，为仇，为怒，化形为魂火，有燎发摧枯之能\n功效：召唤(技能等级/125+2)个怨灵\n使用条件：“化神以灵”技能达到1级\n消耗：30点魔法","u":["化神以灵",1]},"唤魔·堕羽":{"t":"简介：魂火灼灼而烬，堕羽浴火而生，其光其焰，威不可测\n功效：牺牲两个怨灵，召唤一个幻魔\n使用条件：“化神以灵”技能达到20级\n消耗：50点魔法","u":["化神以灵",20]},"唤魔·毒魅":{"t":"简介：天火焚灵兽，灵兽神魂俱灭，其惊怖之状幻化为魔，靡坚不摧\n功效：牺牲召唤兽，召唤一个幻魔\n使用条件：“化神以灵”技能达到120级且角色飞升\n消耗：100点魔法","u":["化神以灵",120]},"唤灵·焚魂":{"t":"简介：天火焚灵兽，灵兽形陨神散，化为魂火\n功效：牺牲召唤兽，召唤六个怨灵\n使用条件：“化神以灵”技能达到120级且角色飞升\n消耗：100点魔法","u":["化神以灵",120]},"天魔觉醒":{"t":"简介：感惊、怒、怨、怖、仇之咒，天魔惊起而嗟，声震八荒，天震地骇\n功效：将吸收目标身上的诅咒并转换成一个幻魔\n使用条件：角色化圣\n消耗：1个金鸦火羽，100点魔法"},"净世煌火":{"t":"简介：天火灼灼，吞噬怨灵以补充自身的气血\n功效：牺牲一个怨灵，恢复气血并解除异常状态\n使用条件：“弹指成烬”技能达到25级\n消耗：50点魔法","u":["弹指成烬",25]},"焚魔烈焰":{"t":"简介：魂火烈烈，怨灵化燎原之焰灼烧对手\n功效：牺牲一个怨灵，对三个单位造成伤害\n使用条件：“弹指成烬”技能达到35级\n消耗：(50*作用目标数)点魔法","u":["弹指成烬",35]},"幽影灵魄":{"t":"简介：女魃墓弟子可采撷三珠树幻影所结灵魄，赋予装备神秘的力量\n功效：平时状态下使用，临时赋予鞋子提升抗封的功效，下线后消失\n使用条件：“藻光灵狱”技能达到35级且角色等级达到30级\n消耗：和技能等级相同点数的活力","u":["藻光灵狱",35]},"魂兮归来":{"t":"简介：魂兮归来！吟诵起古老乐歌的女魃墓弟子可倏忽间返回门派\n功效：平时状态下使用，可以瞬间回到自己的门派，成功率受技能等级影响\n使用条件：“离魂”技能达到1级\n消耗：10点气血、10点魔法","u":["离魂",1]}},"skills":[{"name":"天火献誓","main":true,"effect":"","desc":"天女魃操纵天火的神力与生俱来。是修行本门技能的基础。","spells":[]},{"name":"天罚之焰","main":false,"effect":"提高角色的法伤","desc":"手中燃起灼灼炼焰，焚尽背恩忘义之徒。","spells":["炽火流离","极天炼焰"]},{"name":"煌火无明","main":false,"effect":"提高角色的伤害","desc":"天女魃沉睡千年，煌火无明，魂梦成魇。梦中种种，惊、怒、怨、怖、仇皆化为凌厉诅咒，取人性命。","spells":["谜毒之缚","诡蝠之刑","怨怖之泣","誓血之祭"]},{"name":"化神以灵","main":false,"effect":"","desc":"悲而有灵，如惔如焚。怨而化魔，煌火燎原。怨怼仇恨可幻化为魑魅魍魉，与本门弟子一道出战。","spells":["唤灵·魂火","唤魔·堕羽","唤魔·毒魅","唤灵·焚魂","天魔觉醒"]},{"name":"弹指成烬","main":false,"effect":"提高角色的法防","desc":"生杀予夺，聚灭无常，弹指间，天火灼灼，魂火烬而烈焰生。","spells":["净世煌火","焚魔烈焰"]},{"name":"藻光灵狱","main":false,"effect":"提高角色的防御","desc":"粲粲三珠树，寄生赤水阴。三珠玄木蕴天地精华而生，灵光盈盈，吐叶垂华。沐其清辉，心静而神宁。","spells":["幽影灵魄"]},{"name":"离魂","main":false,"effect":"提高角色的速度","desc":"勘破生死者，无影无形，心神意动，可绝云霓,入青霄，翱翔于杳冥之上。","spells":["魂兮归来"]}]},{"name":"天机城","abbr":"TJC","spells":{"一发而动":{"t":"简介：心念一动，身遂覆以偃甲。 \n功效：精心准备一枚零件，在回合结束时进入偃甲状态。 \n使用条件：角色化圣 \n消耗：1个金鸦火羽，100点魔法"},"针锋相对":{"t":"简介：针尖化为刀刃，敌人对你的锋锐将避无可避。 \n功效：减少目标对除了你之外的目标造成的所有伤害，降低的效果会随着回合数逐渐失效。 \n使用条件：“攻玉以石”技能达到25级 \n消耗：50点魔法","u":["攻玉以石",25]},"攻守易位":{"t":"简介：攻守二势，神意相通，臻于化境，转换自如。 \n功效：将你的“攻之械”和“守之械”互相转化。 \n使用条件：“攻玉以石”技能达到120级且角色飞升 \n消耗：30点魔法","u":["攻玉以石",120]},"锋芒毕露":{"t":"简介：尽情展示偃甲魄力，使敌人如飞蛾扑火，无法将攻势从你身上转移。 \n功效：嘲讽1～5名敌方单位一定回合，使其攻击性行为以你为目标。 \n使用条件：“擎天之械”技能达到25级 \n消耗：50点魔法","u":["擎天之械",25]},"诱袭":{"t":"简介：巧用偃术，以逸待劳，诱导指定的敌人发动进攻，反击制胜。 \n功效：挑衅1名敌方目标，使其对你进行物理攻击并触发你的反击。 \n使用条件：“千机奇巧”技能达到45级 \n消耗：70点魔法","u":["千机奇巧",45]},"破击":{"t":"简介：以偃术伏脉敌身，在适当时机激发，对其造成加倍伤害。 \n功效：对敌方单位造成固定伤害。 \n使用条件：“千机奇巧”技能达到1级 \n消耗：（30*作用人数）点魔法","u":["千机奇巧",1]},"匠心·削铁":{"t":"简介：独运巧匠之心，令友伴的兵刃削铁如泥。 \n功效：增加1～5名友方单位本回合造成的所有伤害。 \n使用条件：“匠心不移”技能达到120级且角色飞升 \n消耗：100点魔法","u":["匠心不移",120]},"匠心·固甲":{"t":"简介：独运巧匠之心，令友伴的护甲坚不可摧。 \n功效：减少1～5名友方单位本回合受到的所有伤害。 \n使用条件：“匠心不移”技能达到35级 \n消耗：100点魔法","u":["匠心不移",35]},"匠心·蓄锐":{"t":"简介：独运巧匠之心，令友伴的元气平复如故。 \n功效：回复1～5名友方单位的气血。 \n使用条件：“匠心不移”技能达到25级 \n消耗：80点魔法","u":["匠心不移",25]},"天马行空":{"t":"简介：心至则身至，任天涯海角，瞬息便可回到门派之中。 \n功效：平时状态下使用，可以瞬间回到自己的门派 \n使用条件：“运思如电”技能达到1级 \n消耗：10点气血、10点魔法","u":["运思如电",1]},"鬼斧神工":{"t":"简介：大巧之造，可夺天工，赋予装备惊神泣鬼之能。 \n功效：临时赋予腰带增加封印命中的功效，下线后消失 \n使用条件：“探奥索隐”技能达到35级且角色等级达到30级 \n消耗：和技能等级相同点数的活力","u":["探奥索隐",35]},"移山填海":{"t":"简介：独揽自然之钥，运格物之力以辗轧敌人。 \n功效：克制花果山弟子的必杀技，使用后需要休息1回合，成功率受技能等级与目标等级之差影响 \n使用条件：“探奥索隐”技能达到25级消耗：150点愤怒","u":["探奥索隐",25]}},"skills":[{"name":"神工无形","main":true,"effect":"天机城弟子在施放部分门派法术后会获得一枚【攻之械】或【守之械】，若回合结束时拥有3枚零件，则会进入偃甲状态，大大强化自己的技能。","desc":"大道无形，大巧不工。以神为意，方可御甲万里。此技能是本门修行的基础。","spells":["一发而动"]},{"name":"攻玉以石","main":false,"effect":"","desc":"他山之石，可以攻玉。对友敌双方的深入研究，使你得以捭阖纵横，机变如神。","spells":["针锋相对","攻守易位"]},{"name":"擎天之械","main":false,"effect":"","desc":"吾有偃甲，壮伟无伦，擎天蔽日，威压乾坤。施展此技能，召唤出擎天巨甲，造就一道敌人永难跨越的屏障。","spells":["锋芒毕露"]},{"name":"千机奇巧","main":false,"effect":"提高角色的防御","desc":"偃甲机簧精妙，毫厘之变，可激摇地拔山之能。精于偃术者，伏脉敌方之身，引发其懈怠之时，攻无不克。","spells":["诱袭","破击"]},{"name":"匠心不移","main":false,"effect":"提高角色的伤害","desc":"御甲之人以全部精神贯注其中，方可操纵自如。习至得心应手，便可引领友方攻势。","spells":["匠心·削铁","匠心·固甲","匠心·蓄锐"]},{"name":"运思如电","main":false,"effect":"提高角色的躲避","desc":"心窍开启，如有神助。修习此技能将令你心念如电，义理精要了然于胸。","spells":["天马行空"]},{"name":"探奥索隐","main":false,"effect":"提高角色的法伤和法防","desc":"浩繁辰星，烂漫银河。有景如斯，心岂缚于俗务？引首以望，吾辈意在苍穹。此技能可迫使天地展露其秘密，万物兴歇尽在掌握。","spells":["鬼斧神工","移山填海"]}]},{"name":"花果山","abbr":"HGS","spells":{"威震凌霄":{"t":"简介：灵霄宝殿惊玉皇，十万天军无可挡。被大圣选定的攻击目标，其勇气和攻势将大大减弱。\n功效：对目标造成伤害，并降低目标物理/法术暴击等级。\n使用条件：“神通广大”技能达到120级且角色飞升。\n消耗：100点魔法","u":["神通广大",120]},"气慑天军":{"t":"简介：大闹天宫之际，虽有天军名将，仍震慑于大圣之气势，众人攻势均不能近其要害。\n功效：对自己使用，大量提升抗物理/法术暴击等级。\n使用条件：“神通广大”技能达到120级且角色飞升。\n消耗：100点魔法","u":["神通广大",120]},"当头一棒":{"t":"简介：迎头一棒，直截了当。花果山弟子之威不需掩饰，敢于侵犯者将被予以毫不留情的警告。\n功效：临时提升伤害攻击一个敌方单位，目标气血百分比若处于60%~70%，造成双倍伤害。\n使用条件：“如意金箍”技能达到1级\n消耗：75点魔法","u":["如意金箍",1]},"神针撼海":{"t":"简介：神针撼动，东海倾波，龙宫不稳，海中生灵无一不处在你攻势的笼罩之下。\n功效：对多个目标造成物理伤害。作用目标数=技能等级/35+1，最多5个。\n使用条件：“如意金箍”技能达到1级\n消耗：75点魔法","u":["如意金箍",1]},"杀威铁棒":{"t":"简介：面对敌人的嚣张气焰，花果山弟子的铁棒将大大煞其威风，令其对己攻势减弱。\n功效：临时提升伤害攻击一个敌方单位，并降低目标本回合对自己的伤害。\n使用条件：“如意金箍”技能达到1级\n消耗：75点魔法","u":["如意金箍",1]},"泼天乱棒":{"t":"简介：金箍棒影覆盖整个天穹，热爱逐胜的花果山弟子，不会放过任何一名敌人。\n功效：临时提升伤害攻击一个敌方单位，若目标未死亡，额外溅射多个敌方单位。溅射目标数=技能等级/45+1，最多3个。\n使用条件：“如意金箍”技能达到1级\n消耗：75点魔法","u":["如意金箍",1]},"九幽除名":{"t":"简介：在生死薄上划去自己名字，使得勾魂鬼差无法近身。\n功效：回合结束若处于死亡状态，有一定几率复活，无视锢魂术。成功率受技能等级影响。\n使用条件：“齐天逞胜”技能达到1级\n消耗：75点魔法","u":["齐天逞胜",1]},"移星换斗":{"t":"简介：拥有偷天换地之能，可转换星斗的位置，借此影响自身属性的转变。\n功效：消耗气血恢复自身的魔法。\n使用条件：“齐天逞胜”技能达到15级\n消耗：30点气血","u":["齐天逞胜",15]},"云暗天昏":{"t":"简介：一棒之威，云暗天昏，星落云散，花果山弟子的速度也随这一棒的威力而提升。\n功效：对多个敌方单位造成固定伤害，下回合提升自己的速度。作用目标数=技能等级/35+2，最多6个。\n使用条件：“齐天逞胜”技能达到1级\n消耗：75点魔法","u":["齐天逞胜",1]},"担山赶月":{"t":"简介：力拔山河，肩挑日月，以盖世之力为装备附加力量。\n功效：平时状态下使用，临时赋予项链提高力量的功效，下线后消失。\n使用条件：“金刚之躯”技能达到35级且角色等级达到30级\n消耗：和技能等级相同点数的活力","u":["金刚之躯",35]},"铜头铁臂":{"t":"简介：老君丹炉中练就铜头铁臂，勇猛强悍，刀枪不入。\n功效：给自己增加一个护盾，护盾消失前提升自己的伤害结果。\n使用条件：“金刚之躯”技能达到1级\n消耗：75点魔法","u":["金刚之躯",1]},"无所遁形":{"t":"简介：敌方弱点在你面前无所遁形，利用对方防守之缺陷予以狠狠一击。\n功效：一定回合内获得额外的暴击和忽略防御的能力，可叠加。\n使用条件：“灵猴九窍”技能达到1级\n消耗：75点魔法","u":["灵猴九窍",1]},"天地洞明":{"t":"简介：祭此奇技，霎时间天地洞明，战场一切形势尽收眼中。\n功效：一定回合内，显示双方的剩余气血并缩短每个单位下达指令的时间，最低下降至10秒。\n使用条件：角色化圣\n消耗：1个金鸦火羽、50点魔法"},"除光息焰":{"t":"简介：驾云布雨，止熄魔火，令炼焰失辉。\n功效：克制女魃墓弟子的必杀技。\n使用条件：“灵猴九窍”技能达到25级且角色等级达到20级\n消耗：150点愤怒","u":["灵猴九窍",25]},"呼子唤孙":{"t":"简介：拔下一撮毫毛，一口仙气吹去，猴子猴孙纷纷来助。\n功效：召唤使用物理攻击的巨力神猿协助战斗，每场战斗最多可使用5次。\n使用条件：“七十二变”技能达到10级\n消耗：30点魔法","u":["七十二变",10]},"八戒上身":{"t":"简介：施展七十二般变化之术，将敌人变成一只没有威胁的小猪。\n功效：使用后可以把一个敌方单位变成一只可爱的小猪，并随机驱散一个良性状态。\n使用条件：“七十二变”技能达到45级\n消耗：50点魔法","u":["七十二变",45]},"筋斗云":{"t":"简介：一个筋斗十万八千里，无论在三界任一角落均可瞬间回到门派。\n功效：平时状态下使用，可以瞬间回到自己的门派，成功率受技能等级影响。\n使用条件：“筋斗云”技能达到1级\n消耗：10点气血、10点魔法","u":["筋斗云",1]}},"skills":[{"name":"神通广大","main":true,"effect":"花果山弟子在每回合开始时，将只能使用随机的3个【如意神通】。与NPC的战斗中，普通攻击将会额外攻击一个目标。","desc":"齐天大圣降妖伏魔，嫉恶如仇，其法术之高，神通广大，无所不能。通晓此技能，是本门修行的基础。","spells":["威震凌霄","气慑天军"]},{"name":"如意金箍","main":false,"effect":"按技能等级提高伤害","desc":"大禹治水之定海神针为齐天大圣的随身兵器，乌铁神珍，大小随心。习得此棒法可助力本门弟子给予对手重击，令其不敢小觑。","spells":["当头一棒","神针撼海","杀威铁棒","泼天乱棒"]},{"name":"齐天逞胜","main":false,"effect":"","desc":"齐天大圣之名方可遂悟空之意，闹凌霄、撼东海、戏阎王，无一不为逞胜之举。花果山弟子均继承了此等威仪自信。","spells":["九幽除名","移星换斗","云暗天昏"]},{"name":"金刚之躯","main":false,"effect":"按技能等级提高防御","desc":"孙悟空在太上老君的丹炉中用三昧真火足足炼了七七四十九日，锻成金刚之躯。花果山弟子也继承其坚韧躯体，凡刃不能伤。","spells":["担山赶月","铜头铁臂"]},{"name":"灵猴九窍","main":false,"effect":"按技能等级提高命中","desc":"混沌初分，鸿蒙始辨。花果山孕育仙石，上有九窍八孔，终于见风化作灵明石猴。此猴通变化，识天时，知地利，天地间一切似乎尽在其掌握。","spells":["无所遁形","天地洞明","除光息焰"]},{"name":"七十二变","main":false,"effect":"按等级提高法伤和法防","desc":"地煞之术，该当七十二般变化。可男可女，可老可少，可人可物，变化无穷，习此变化之术，天雷、阴火、赑风均可避之。","spells":["呼子唤孙","八戒上身"]},{"name":"腾云驾雾","main":false,"effect":"","desc":"以云雾飞行于天穹，自在无穷。","spells":["筋斗云"]}]},{"name":"东海渊","abbr":"DHY","spells":{"聆音":{"t":"功效：【被动】进入战斗时，你获得5层梦魇。使用虫之噬、蛙之影和龟之象后会获得等同当前境界层数的梦魇。\n简介：被动技能"},"沉没":{"t":"功效：【被动】回合结束时，若梦魇层数达到10或以上，立刻进入“沉没”境界：你造成所有伤害降低60%且无法进入其他境界，持续到梦魇消失。\n简介：被动技能"},"汹涌":{"t":"功效：【被动】与玩家战斗时，你的虫之噬和蛙之影额外造成24%伤害、海龟石像释放的海龟额外造成24%伤害。\n简介：被动技能"},"蛙之影":{"t":"功效：增进1层境界并进入“蛙之境”，对敌方单个目标造成2次法术伤害，每层境界额外增加1次法术伤害。\n消耗：50点魔法\n简介：进入“蛙之境”：是雨声滴答，还是海浪沙沙？暗影之中层层叠起的巨蛙，伺机待发。"},"虫之噬":{"t":"功效：增进1层境界并进入“虫之境”，对敌方2个目标造成法术伤害，每层境界额外增加1个目标。\n消耗：30点魔法*作用目标数\n简介：进入“虫之境”：触感柔软的梦境，在不知不觉间窒息，感受被海毛虫包围的恐惧吧！"},"龟之象":{"t":"功效：增进1层境界并进入“龟之境”，召唤1个海龟进入海龟石像，每层境界额外召唤1个海龟。每次你使用攻击性法术时，海龟石像会弹出1只海龟追加1次法术伤害。\n消耗：50点魔法\n简介：进入“龟之境”：自远古的石像中来，带着神秘的图腾和无解的诅咒，延续一代又一代，却被世人视为永生。"},"森罗万象":{"t":"功效：对敌方3个目标造成法术伤害。\n使用条件：\"潮汐之咒\"技能达到30级\n消耗：30点魔法*作用目标数\n简介：广袤的海洋中蕴藏了太多秘密，大部分人都对深海的力量一无所知。","u":["潮汐之咒",30]},"海市蜃楼":{"t":"功效：召唤一些动物附身，每召唤1只会获得1层梦魇，直至梦魇达到9层。每只“毛虫”/“巨蛙”/“海龟”附身会令自己：造成伤害提升9%/受到伤害降低9%/速度提升9%，持续3回合。\n使用条件：\"潮汐之咒\"技能达到60级\n消耗：50点魔法\n简介：出现在海中的仙阁，上出重霄，下临无地，如梦似幻，那是可望不可及的美丽。","u":["潮汐之咒",60]},"神游物外":{"t":"功效：平时状态下使用，在门派暗影前使用可进入“修行”状态：修行成功可获得人物经验，修行失败会获得惩罚。\n使用条件：\"潮汐之咒\"技能达到30级\n消耗：每次触发随机事件减2点体力，体力不足经验衰减50%\n简介：东海渊独有的梦境修行之术，梦与海都是没有界限的，因而在修行的途中更要小心走火入魔。","u":["潮汐之咒",30]},"万里烟波":{"t":"功效：退出当前的“虫之境”、“蛙之境”或“龟之境”，有概率清除全部梦魇。\n使用条件：\"澄心之浪\"技能达到30级\n消耗：100点魔法\n简介：即使身怀诅咒，但也拥有着如海一般宽阔的心胸，没有什么是不能放下的。","u":["澄心之浪",30]},"涤荡":{"t":"功效：随机清除3-4层梦魇。\n消耗：100点魔法\n简介：再重的梦魇也会迎来梦醒时分。"},"暗涌":{"t":"功效：每回合结束时消耗666点魔法，并随机清除1-3层梦魇，持续4回合。\n使用条件：\"澄心之浪\"技能达到60级\n消耗：50点魔法\n简介：平静温和的海面下，隐藏了多少不为人知的秘密呢？","u":["澄心之浪",60]},"随波逐浪":{"t":"功效：回门派法术。\n使用条件：\"遨游\"技能达到1级\n消耗：10点气血、10点魔法\n简介：循着先祖的足迹，只要在有海的地方，无论行至多远都能找到回家的路。","u":["遨游",1]}},"skills":[{"name":"深海呓语","main":true,"effect":"","desc":"深海潮汐，暗涌之力，沉睡之时，梦魇将至。此技能是本门修行的基础，东海渊弟子在释放法术后将获得梦魇，需小心提防，否则将陷入无边沉眠。","spells":["聆音","沉没","汹涌"]},{"name":"混沌之谜","main":false,"effect":"按技能等级提高伤害","desc":"蛰伏暗处，自阴影中降临。施展此技后可使用巨蛙的力量。","spells":["蛙之影"]},{"name":"远古之境","main":false,"effect":"按技能等级提高防御","desc":"柔软之躯，吞噬无尽，混沌之息，蚕食梦境。施展此技后可使用海毛虫的力量。","spells":["虫之噬"]},{"name":"长生之祀","main":false,"effect":"按技能等级提高法防","desc":"海洋之息，永生之迷，远古石像，仍引暗潮涌动。施展此技后可使用大海龟的力量。","spells":["龟之象"]},{"name":"潮汐之咒","main":false,"effect":"按技能等级提高魔法","desc":"来自大海深处的神秘律动，在海底如血脉般绵延，刻进每一个海洋生物的生命，却是上古神力遗留下的永恒诅咒。","spells":["森罗万象","海市蜃楼","神游物外"]},{"name":"澄心之浪","main":false,"effect":"按技能等级提高法伤","desc":"大海掀起无尽的波浪，海水的涌动奏响奇妙的乐章，那是每一个东海渊族人关于家乡的记忆，是心中最温暖柔软的地方。","spells":["万里烟波","涤荡","暗涌"]},{"name":"遨游","main":false,"effect":"按技能等级提高躲避","desc":"海洋自创世以来，就对生活在此的生物提供了畅游的权力。学习后可提高躲避。","spells":["随波逐浪"]}]},{"name":"九黎城","abbr":"JLC","spells":{"黎魂":{"t":"功效：【被动】每回合可以释放2~3个师门技能。\n简介：被动技能"},"战鼓":{"t":"功效：【被动】使用师门技能攻击敌人时会累加连击值，连击值越大，下回合“黎魂”触发3个技能概率越高。\n简介：被动技能"},"怒哮":{"t":"功效：【被动】使用一斧开天后如果目标没有处于浮空状态，45%概率获得“怒哮”：临时大幅度增加使用一斧开天和三荒尽灭的浮空成功率。当使用一斧开天令目标成功浮空或者三荒尽灭目标成功浮空时，移除该效果。\n简介：被动技能"},"炎魂":{"t":"功效：【被动】全部种族的属性点加成属性统一按照魔族成长。每回合首次使用师门技能前会临时将自身防御的5%~10%转为伤害力。\n简介：被动技能"},"枫影二刃":{"t":"功效：对敌方单个目标连续发动2次物理攻击，使用后自己有概率获得“怒哮”。\n消耗：20点魔法\n简介：战歌鸣，怒哮起，枫林迎战舞，英魂影重重。"},"一斧开天":{"t":"功效：对敌方单个目标连续发动2次物理攻击，使用后有概率令目标进入“浮空”状态，持续到你的行动结束。\n使用条件：\"兵铸乾坤\"技能达到30级\n消耗：20点魔法\n简介：一斧开天，气破乾坤，以往昔之魄，凝今时之志。","u":["兵铸乾坤",30]},"三荒尽灭":{"t":"功效：对敌方3个目标发动物理攻击，并令所有目标有概率进入“浮空”状态，持续到你的行动结束。\n使用条件：\"燃铁飞花\"技能达到30级\n消耗：20点魔法\n简介：横空霹雳，惊三荒，煞四野，昭吾九黎之威。","u":["燃铁飞花",30]},"铁血生风":{"t":"功效：对敌方单个目标发动物理攻击，如果目标处于“浮空”状态，额外发动1~2次物理攻击。\n使用条件：\"战火雄魂\"技能达到30级\n消耗：20点魔法\n简介：铁血凝矣，挟风而起，敌逢吾威，食尘饮悔。","u":["战火雄魂",30]},"力辟苍穹":{"t":"功效：对敌方全部处于“浮空”状态的目标连续发动2~3次物理攻击，然后取消全部目标的“浮空”状态。\n使用条件：\"魔神降世\"技能达到30级\n消耗：20点魔法\n简介：魔神垂祉，上古魔息浩若狂澜。兵主赐威，穹顶之下唯吾独行。","u":["魔神降世",30]},"故壤归心":{"t":"功效：平时状态下使用，可以瞬间回到自己的门派，成功率受技能等级影响。\n消耗：20点魔法\n简介：疾风骤起，寻归故里，不问天涯，九黎归心。"}},"skills":[{"name":"九黎战歌","main":true,"effect":"无","desc":"战鼓铿锵，战魂不息，九黎之歌荡涤天地，激昂族人之志。","spells":["黎魂","战鼓","怒哮","炎魂"]},{"name":"魂枫战舞","main":false,"effect":"按技能等级提高伤害","desc":"魂枫翩跹，奕奕如战，英气磅礴，永不息止。","spells":["枫影二刃"]},{"name":"兵铸乾坤","main":false,"effect":"按技能等级提高灵力","desc":"九黎魔息，燎天之焰，铸魂成兵，乾坤在握。","spells":["一斧开天"]},{"name":"燃铁飞花","main":false,"effect":"按技能等级提高命中","desc":"战意如火，叱咤生花，九黎之子，铁士无畏。","spells":["三荒尽灭"]},{"name":"战火雄魂","main":false,"effect":"按技能等级提高防御","desc":"九黎之魂，犹燎原之火，燃万丈烈焰，指胜利之巅。","spells":["铁血生风"]},{"name":"魔神降世","main":false,"effect":"无","desc":"聆听兵主密命，得赐魔神之力，战无不胜，天地可征。","spells":["力辟苍穹"]},{"name":"风行九黎","main":false,"effect":"按技能等级提高躲避","desc":"风所行处，九黎无阻，越古穿今，无迹不至。","spells":["故壤归心"]}]},{"name":"弥勒山","abbr":"MLS","spells":{"广结善缘":{"t":"简介：从师闻道，悟彻天命，众生海海，因缘和合。\n功效：获得2点“因果”；队伍中只有自己1个封印流派时（阴曹地府除外），额外获得2点“因果”"},"随心如意":{"t":"简介：正因无穷，福报绵延，随所乐求，一切皆遂。\n功效：1、每回合可消耗因果点由如意灵童使用一次“因果法术”。2、“因果封印”（因果法术中的封印法术）可以与其它封印状态叠加。（包括休息状态）3、拥有因果点上限为6。"},"返本归真":{"t":"简介：诸法空相，见性本真，金羽焚业，善因得种。\n功效：解除自身的封印效果，并获得2点“因果”。消耗金鸦火羽"},"因果·无争":{"t":"简介：封其争伐，如赠慧剑。\n功效：因果法术，使敌方目标无法使用普通攻击，持续1回合。消耗1点因果。"},"因果·戒宝":{"t":"简介：戒其宝光，如证法忍。\n功效：因果法术，使敌方目标无法使用主动法宝，持续1回合。消耗1点因果。"},"因果·止怒":{"t":"简介：止其怒火，如定风波。\n功效：因果法术，使敌方目标无法使用特技，持续1回合。消耗1点因果。"},"因果·释物":{"t":"简介：释其物念，如解尘缚。\n功效：因果法术，使敌方目标无法使用道具，持续1回合。消耗1点因果。"},"以和为贵":{"t":"简介：礼让三分闲，心平百事安，纷争化玉帛，和合众生欢。\n功效：使敌方目标无法使用法术，持续1/2/3/4/5/6回合。（0/25/45/75/100/125级）"},"立地成佛":{"t":"简介：起心动念，因果自缚，放下屠刀，立见禅机。\n功效：消耗所有因果对目标单位进行多次封印，消耗的因果越多，封印种类越多，持续回合数越长。"},"知足常乐":{"t":"简介：无欲得自在，知足生欢喜，得失随缘去，心广天地宽。\n功效：使友方玩家单位下回合禁止使用法术，但使用普通攻击、破血狂攻、琴音三叠造成的伤害提高。"},"大肚能容":{"t":"简介：忍辱得乐，恩怨自消。\n功效：使自己本回合受到的所有伤害降低，且每次受到攻击额外获得3点愤怒。 CD5回合。"},"吉人天相":{"t":"简介：吉光护体，福佑加持。\n功效：解除我方单个目标的“紧箍咒”状态。"},"随遇而安":{"t":"简介：禅悦离外劫，法尘生业障，增减无牵挂，苦乐两相忘。\n功效：使友方玩家单位受到的物理伤害降低80%，受到的法术伤害提高100%且其法术防御降低50%，持续1回合。"},"福至心灵":{"t":"简介：灵光忽现顶，妙法自心生，一念通明处，轻身踏云行。\n功效：平常状态下使用，赋予鞋子提高敏捷的功效，下线后消失。"},"天花乱坠":{"t":"简介：佛法殊胜妙，天华遍虚空，度尽娑婆苦，自在无量光。\n功效：对敌方1（1级）/2（50级）/3（75级）个目标发动物理攻击。（与玩家战斗时伤害为1）"},"一叶菩提":{"t":"简介：叶落三千界，锋回见禅心，菩提本无树，五蕴亦皆空。\n功效：对敌方单个目标发动1次物理攻击，并使自身获得5点愤怒。"},"吃茶去了":{"t":"简介：世事皆纷扰，佛山自清净，不如吃茶去。\n功效：平常状态下使用，可以瞬间回到自己的门派。"}},"skills":[{"name":"缘起法随","main":true,"effect":"其他门派技能的等级不能高于本技能。","desc":"诸法因缘生，诸法因缘灭。","spells":["广结善缘","随心如意","返本归真"]},{"name":"善果圆成","main":false,"effect":"","desc":"善因结善果，圆满自成就。","spells":["因果·无争","因果·戒宝","因果·止怒","因果·释物","以和为贵"]},{"name":"慈悲为怀","main":false,"effect":"按技能等级提高灵力","desc":"习得修行妙法门，慈心自度有缘人。","spells":["立地成佛","知足常乐"]},{"name":"福慧无量","main":false,"effect":"按技能等级提高防御","desc":"褔如般若清凉月，慧比金刚不坏身。","spells":["大肚能容","吉人天相"]},{"name":"欢喜自在","main":false,"effect":"按技能等级提高速度","desc":"无拘亦无束，破障似拂尘。","spells":["随遇而安","福至心灵"]},{"name":"光明净土","main":false,"effect":"按技能等级提高伤害","desc":"无拘亦无束，破障似拂尘。","spells":["天花乱坠","一叶菩提"]},{"name":"来去自如","main":false,"effect":"按等级提高躲避","desc":"穿梭红尘里，不染自在身。","spells":["吃茶去了"]}]}],"milestones":{"龙卷雨击":[[25,"秒 2"],[50,"秒 3"],[75,"秒 4"],[100,"秒 5"],[125,"秒 6"],[150,"秒 7"]]}}</script>
+
+
+<!-- ============================================================
+     纯计算引擎 —— 不触碰 DOM，可被测试代码单独提取对拍
+     每个工具一个引擎块；工具视图只负责把结果画出来
+     ============================================================ -->
+<script id="engine-skill">
+/** 师门技能引擎工厂：传入数据岛，返回纯计算函数 */
+function SkillEngine(data){
+const EXP = data.cost.exp, GOLD = data.cost.gold;
+const MAXLV = EXP.length;                       // 180
+const SECTS = data.sects;
+const MILE = data.milestones || {};
+
+function costOf(from, to){
+  let exp = 0, gold = 0;
+  for (let L = from + 1; L <= to; L++){ exp += EXP[L-1]; gold += GOLD[L-1]; }
+  return { exp, gold, levels: Math.max(0, to - from) };
+}
+/** 每 5 级归为一档；支持多段区间合并 */
+function bandsOf(ranges){
+  const map = new Map();
+  for (const [from, to] of ranges){
+    for (let L = from + 1; L <= to; L++){
+      const k = Math.ceil(L / 5);
+      let b = map.get(k);
+      if (!b){ b = { k, lo:L, hi:L, exp:0, gold:0 }; map.set(k, b); }
+      if (L < b.lo) b.lo = L;
+      if (L > b.hi) b.hi = L;
+      b.exp += EXP[L-1]; b.gold += GOLD[L-1];
+    }
+  }
+  return [...map.values()].sort((x, y) => x.k - y.k);
+}
+function spellsOf(sect, skill){
+  return (skill.spells || []).map(name => {
+    const rec = sect.spells[name] || {};
+    return { name, text: rec.t || '', unlock: rec.u || null, milestones: MILE[name] || null };
+  });
+}
+
+  return { MAXLV, SECTS, MILE, costOf, bandsOf, spellsOf };
+}
+</script>
+
+<script id="engine-xiulian">
+/** 人物修炼引擎：同一个参数化状态机覆盖三种修炼类型 */
+const XiulianEngine = (() => {
+const expAt = n => (n * n + 3 * n + 11) * 10;                 // 升到 n 级所需经验
+const expSum = (a, b) => { let s = 0; for (let n = a + 1; n <= b; n++) s += expAt(n); return s; };
+
+// 类型的唯一差异：单价 + 上限 + 是否可降修
+const TYPES = [
+  { id:'atk',  name:'攻修 / 法修', tag:'攻击修炼 · 法术修炼 · 3 万/次', perClick:30000, capMax:25, canLower:true  },
+  { id:'def',  name:'防御 / 抗法', tag:'防御修炼 · 抗法修炼 · 2 万/次', perClick:20000, capMax:25, canLower:true  },
+  { id:'hunt', name:'猎术修炼',    tag:'提升捕捉成功率 · 3 万/次 · 上限 20', perClick:30000, capMax:20, canLower:false },
+];
+const BASE_CAP = 20;
+
+function compute(type, level, cap, target){
+  const rate = type.perClick / 10;
+  const out = { ok:true, flow:[], newExp:0, sunkExp:0, newMoney:0, sunkMoney:0,
+                lowerCount:0, capFinal:cap, levelFinal:level, levelAfterLower:level, notice:'', error:'' };
+  const money = e => e * rate;
+
+  if (target > type.capMax){
+    out.ok = false;
+    out.error = `${type.name}的修炼上限为 ${type.capMax} 级，无法提升到 ${target} 级。`;
+    return out;
+  }
+  if (target <= level){
+    out.notice = `目标等级（${target} 级）不高于当前等级（${level} 级），无需提升，花费 0。`;
+    return out;
+  }
+
+  let L = level, C = cap, i = 0;
+  while (C < target){
+    if (L < C - 1){                                  // 距上限太远，先点修贴上去
+      const e = expSum(L, C - 1);
+      out.flow.push({ i:++i, op:'点修', level:`${L} → ${C - 1}`, cap:String(C), money:money(e), sunk:0 });
+      out.newExp += e; L = C - 1;
+    }
+    const lost = expAt(L);                           // 降修：上限 +1、等级 −1，被降掉那级的投入作废
+    out.flow.push({ i:++i, op:'降修', level:`${L} → ${L - 1}`, cap:`${C} → ${C + 1}`, money:0, sunk:money(lost) });
+    out.sunkExp += lost; out.lowerCount++; L--; C++;
+  }
+  out.capFinal = C; out.levelAfterLower = L;
+  if (L < target){
+    const e = expSum(L, target);
+    out.flow.push({ i:++i, op:'点修', level:`${L} → ${target}`, cap:String(C), money:money(e), sunk:0 });
+    out.newExp += e; L = target;
+  }
+  out.levelFinal = L;
+  out.newMoney = money(out.newExp);
+  out.sunkMoney = money(out.sunkExp);
+  return out;
+}
+
+  return { expAt, expSum, TYPES, BASE_CAP, compute };
+})();
+</script>
+
+
+<script id="engine-qianyuan">
+/**
+ * 乾元丹引擎
+ *
+ * 数据来源与互相印证：
+ *  · 旧版 60 个乾元丹的逐丹数据表（叶子猪「乾元丹经验计算器」）可被一条三次多项式
+ *    完全还原，60/60 点精确吻合；金钱恒为 经验的 20%（逐项取下取整）。
+ *  · 2022 年新版把 60 个小丹合并为 9 个大丹，合并区间固定，
+ *    新版 9 个大丹的消耗与「旧公式按区间求和」逐项相等（9/9 吻合）。
+ * 两套独立数据互相验证，故此处直接由公式推导，不写死数字。
+ */
+const QianyuanEngine = (() => {
+  /** 旧版第 n 个乾元丹所需人物经验 */
+  const oldExp = n => 8 * n ** 3 + 1460 * n ** 2 + 88900 * n + 2806000;
+  /** 旧版第 n 个乾元丹所需金钱 = 经验 × 20%（向下取整） */
+  const oldMoney = n => Math.floor(oldExp(n) * 2 / 10);
+
+  /** 新版大丹 = 旧版小丹的固定区间合并 */
+  const RANGES = [[1,7],[8,14],[15,21],[22,28],[29,35],[36,42],[43,49],[50,55],[56,60]];
+  /** 每个大丹的人物等级门槛 */
+  const LEVELS = [69, 89, 109, 129, 155, 159, 164, 168, 171];
+
+  const DAN = RANGES.map(([from, to], i) => {
+    let exp = 0, money = 0;
+    for (let n = from; n <= to; n++){ exp += oldExp(n); money += oldMoney(n); }
+    return { n: i + 1, level: LEVELS[i], from, to, count: to - from + 1, exp, money };
+  });
+  const MAX = DAN.length;
+
+  /** 人物等级最多能开几个乾元丹 */
+  function capForLevel(lv){
+    let c = 0;
+    for (const d of DAN) if (lv >= d.level) c = d.n;
+    return c;
+  }
+
+  /** 从「已有 from 个」点到「第 to 个」的累计消耗（含 to） */
+  function costBetween(from, to){
+    let exp = 0, money = 0, oldCount = 0;
+    const steps = [];
+    for (let n = Math.max(0, from) + 1; n <= Math.min(to, MAX); n++){
+      const d = DAN[n - 1];
+      exp += d.exp; money += d.money; oldCount += d.count;
+      steps.push(d);
+    }
+    return { exp, money, steps, count: steps.length, oldCount };
+  }
+
+  /** 手上 exp 点经验、已有 from 个丹，最多还能再开几个 */
+  function maxAffordable(from, exp){
+    let left = exp, got = 0, money = 0, i = Math.max(0, Math.min(from, MAX));
+    while (i < MAX && left >= DAN[i].exp){ left -= DAN[i].exp; money += DAN[i].money; got++; i++; }
+    const next = i < MAX ? DAN[i] : null;
+    return {
+      got, total: Math.max(0, Math.min(from, MAX)) + got,
+      spentExp: exp - left, spentMoney: money, leftExp: left,
+      next, shortOf: next ? next.exp - left : 0,
+    };
+  }
+
+  return { DAN, MAX, LEVELS, RANGES, oldExp, oldMoney, capForLevel, costBetween, maxAffordable };
+})();
+</script>
+
+<script>
+/* ============================================================
+   0. 基础设施 —— 全工具共用
+   ============================================================ */
+const $ = (sel, root = document) => root.querySelector(sel);
+
+/** 所有进入 innerHTML 的数据字符串都过这里 */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+const fmt = {
+  /** 千分位整数 */
+  num: n => Math.round(n).toLocaleString('en-US'),
+  /** 中文数量级：亿（最多 4 位小数）/ 万（最多 2 位小数），末尾 0 去掉并加千分位 */
+  cn(n){
+    const v = Number(n) || 0, a = Math.abs(v);
+    const trim = s => s.replace(/\.?0+$/, '');
+    const sep = s => { const [i, d] = s.split('.'); return Number(i).toLocaleString('en-US') + (d ? '.' + d : ''); };
+    if (a >= 1e8) return sep(trim((v / 1e8).toFixed(4))) + ' 亿';
+    if (a >= 1e4) return sep(trim((v / 1e4).toFixed(2))) + ' 万';
+    return fmt.num(v);
+  },
+  /** 每帧最多渲染一次 */
+  raf(fn){
+    let done = false;
+    return () => { if (done) return; done = true; requestAnimationFrame(() => { done = false; fn(); }); };
+  },
+};
+
+/* ============================================================
+   1. UI 组件库 —— 统一的视觉语言，所有工具复用
+   ============================================================ */
+const ui = {
+  card({ title = '', body = '', cls = '' } = {}){
+    return `<section class="card ${cls}">${title ? `<h2>${esc(title)}</h2>` : ''}${body}</section>`;
+  },
+  field({ label, id, hint = '', value = '', attrs = '', tag = 'input' } = {}){
+    const control = tag === 'select'
+      ? `<select id="${id}" ${attrs}></select>`
+      : `<input type="number" id="${id}" inputmode="numeric" step="1" value="${esc(value)}" ${attrs}>`;
+    return `<div class="field">
+      <label class="f" for="${id}">${esc(label)}</label>
+      ${control}
+      <div class="hint" id="${id}-hint">${esc(hint)}</div>
+    </div>`;
+  },
+  /** 统计卡：items = [{k, v, sub, tone}] */
+  stats(items, { hero = false } = {}){
+    const cls = items.length === 1 ? 'stats one' : 'stats';
+    return `<div class="${cls}">${items.map(i => `
+      <div class="stat${i.tone ? ' tone-' + i.tone : ''}${i.hero ? ' hero' : ''}">
+        <div class="k">${esc(i.k)}</div>
+        <div class="v">${i.v}</div>
+        <div class="sub">${i.sub || ''}</div>
+      </div>`).join('')}</div>`;
+  },
+  pills(items){
+    return `<div class="pills">${items.map(p =>
+      `<span class="pill${p.tone === 'warn' ? ' warn' : ''}">${p.text}</span>`).join('')}</div>`;
+  },
+  /** 行可以是裸数组 [c1, c2]，也可以是 { cells:[…], cls }；cell 支持 {text, cls} */
+  table({ head = [], rows = [], total = null, cls = '' } = {}){
+    const cell = c => (c && typeof c === 'object' && !Array.isArray(c)
+      ? `<td class="${c.cls || ''}">${c.text}</td>` : `<td>${c}</td>`);
+    const row = r => {
+      const rr = Array.isArray(r) ? { cells: r } : r;
+      return `<tr class="${rr.cls || ''}">${(rr.cells || []).map(cell).join('')}</tr>`;
+    };
+    return `<div class="table-wrap ${cls}"><table>
+      <thead><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${rows.map(row).join('')}
+        ${total ? `<tr class="total">${total.map(cell).join('')}</tr>` : ''}
+      </tbody></table></div>`;
+  },
+  alert(text){ return `<div class="alert">${text}</div>`; },
+  idle(text){ return `<div class="idle">${esc(text)}</div>`; },
+  seg(items, activeId){
+    return `<div class="seg" role="tablist">${items.map(i =>
+      `<button type="button" data-seg="${i.id}" class="${i.id === activeId ? 'active' : ''}">${esc(i.name)}</button>`).join('')}</div>`;
+  },
+  opts(items, activeId){
+    return `<div class="opts">${items.map(i =>
+      `<button type="button" class="opt" data-opt="${i.id}" aria-pressed="${i.id === activeId}">
+        <span class="n">${esc(i.name)}</span><span class="t">${esc(i.tag || '')}</span>
+      </button>`).join('')}</div>`;
+  },
+};
+
+// ============================================================
+// 2. 工具注册表 —— 新增计算器只需 Tools.register(...)
+//
+// 新增一个工具的完整步骤：
+//   ① 数据大的话，加一个数据岛：
+//        <script type="application/json" id="data-xxx">{...}<\/script>
+//   ② 计算逻辑写成无 DOM 的引擎块，插到主程序之前：
+//        <script id="engine-xxx">function XxxEngine(data){ /* ... */ return { ... }; }<\/script>
+//      （这样 tests/engine.test.mjs 能直接抽出来对拍）
+//   ③ 在下面注册一个工具：
+//        Tools.register({
+//          id: 'xxx', name: '工具名', tagline: '一句话说明',
+//          dataId: 'data-xxx',          // 没有数据岛就写 null
+//          create(ctx){
+//            // ctx = { host, data, ui, fmt, esc, $, invalidate }
+//            //   host        本工具根节点，直接往里面写 innerHTML
+//            //   data        数据岛解析结果（dataId 为 null 时是 null）
+//            //   ui          统一组件库 card/field/stats/pills/table/seg/opts/alert/idle
+//            //   fmt         num / cn / raf
+//            //   invalidate  节流到下一帧重绘本工具
+//            host.innerHTML = ui.card({ title: '…', body: '…' });
+//            return { render(){ /* 把当前状态画出来 */ } };
+//          },
+//        });
+//
+// 约定：工具之间互相不可见、不共享状态；共享的只有 ui / fmt / esc 这三个纯工具。
+//      切换工具不会重建已加载的工具，所以各自的输入状态天然保留。
+// ============================================================
+const Tools = (() => {
+  const list = [];
+  let active = null, host = null;
+
+  /** each tool: { id, name, tagline, dataId, create(ctx) -> { render } } */
+  function register(tool){ list.push(tool); }
+
+  function dataOf(id){
+    const node = id && document.getElementById(id);
+    return node ? JSON.parse(node.textContent) : null;
+  }
+
+  function mount(id){
+    const tool = list.find(t => t.id === id) || list[0];
+    if (!tool) return;
+
+    if (!tool._root){
+      const root = document.createElement('div');
+      root.className = 'tool tool-' + tool.id;
+      host.appendChild(root);
+      const invalidate = fmt.raf(() => { if (tool._inst) tool._inst.render(); });
+      const ctx = { host: root, data: dataOf(tool.dataId), ui, fmt, esc, $, invalidate };
+      tool._root = root;
+      tool._inst = tool.create(ctx);
+    }
+    list.forEach(t => { if (t._root) t._root.hidden = (t !== tool); });
+    active = tool;
+
+    [...document.querySelectorAll('#tabs button')].forEach(b =>
+      b.classList.toggle('active', b.dataset.tool === tool.id));
+    location.hash = tool.id;
+
+    if (tool._inst) tool._inst.render();
+  }
+
+  function boot(hostEl){
+    host = hostEl;
+    document.getElementById('tabs').innerHTML = list.map(t =>
+      `<button type="button" data-tool="${t.id}" role="tab">${esc(t.name)}</button>`).join('');
+    document.getElementById('tabs').addEventListener('click', e => {
+      const b = e.target.closest('button[data-tool]');
+      if (b) mount(b.dataset.tool);
+    });
+    const wanted = (location.hash || '').replace('#', '');
+    mount(list.some(t => t.id === wanted) ? wanted : list[0].id);
+  }
+
+  return { register, boot, mount, list };
+})();
+
+/* ============================================================
+   3. 工具：人物修炼
+   ============================================================ */
+Tools.register({
+  id: 'xiulian',
+  name: '人物修炼',
+  tagline: '攻/法、防/抗法、猎术的修炼花费与降修损失',
+  dataId: null,
+  create(ctx){
+    const { host, esc, fmt, ui, $, invalidate } = ctx;
+
+    /* ---------- 引擎：调用独立引擎块 ---------- */
+    const { expAt, expSum, TYPES, BASE_CAP, compute } = XiulianEngine;
+
+    /* ---------- 状态与骨架 ---------- */
+    const state = { typeId: TYPES[0].id, lvTrimmed: null };   // lvTrimmed = 当前等级被夹到上限时记住那个上限
+    const typeOf = id => TYPES.find(t => t.id === id) || TYPES[0];
+
+    host.innerHTML = `<div class="grid two">
+      <div class="card">
+        <h2>修炼类型与等级</h2>
+        <div id="xl-opts"></div>
+        <div style="margin-top:16px">
+          <div class="field">
+            <label class="f" for="xl-lv">当前修炼等级</label>
+            <input type="number" id="xl-lv" inputmode="numeric" step="1" placeholder="">
+            <div class="hint" id="xl-lv-hint"></div>
+          </div>
+          <div class="field">
+            <label class="f" for="xl-cap">当前修炼上限</label>
+            <input type="number" id="xl-cap" inputmode="numeric" step="1">
+            <div class="hint" id="xl-cap-hint"></div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label class="f" for="xl-target">目标修炼等级</label>
+            <input type="number" id="xl-target" inputmode="numeric" step="1">
+            <div class="hint" id="xl-target-hint"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>计算结果</h2>
+        <div id="xl-result"></div>
+      </div>
+    </div>`;
+
+    const el = {
+      opts: $('#xl-opts', host), lv: $('#xl-lv', host), cap: $('#xl-cap', host), target: $('#xl-target', host),
+      lvHint: $('#xl-lv-hint', host), capHint: $('#xl-cap-hint', host), targetHint: $('#xl-target-hint', host),
+      result: $('#xl-result', host),
+    };
+
+    const intOrNull = node => { const v = parseInt(node.value, 10); return Number.isFinite(v) ? v : null; };
+    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+    function read(){
+      const t = typeOf(state.typeId);
+      let cap = t.canLower ? intOrNull(el.cap) : BASE_CAP;
+      let lv = intOrNull(el.lv);
+      let target = intOrNull(el.target);
+      const incomplete = lv === null || target === null || cap === null;
+      if (cap !== null) cap = clamp(cap, BASE_CAP, t.capMax);
+      if (lv !== null) lv = clamp(lv, 0, cap === null ? t.capMax : cap);
+      if (target !== null) target = clamp(target, 0, t.capMax);
+      return { t, lv, cap, target, incomplete };
+    }
+    function renderOpts(){
+      el.opts.innerHTML = ui.opts(TYPES.map(t => ({ id:t.id, name:t.name, tag:t.tag })), state.typeId);
+    }
+    /** 切类型：**保留**已输入的修炼值，只把猎术的上限框钉回 20 */
+    function syncCapForType(){
+      if (!typeOf(state.typeId).canLower) el.cap.value = String(BASE_CAP);
+    }
+    /** 当前生效的上限：猎术固定 20；上限框空着时返回 null（此时不夹当前等级） */
+    function effCap(){
+      const t = typeOf(state.typeId);
+      if (!t.canLower) return BASE_CAP;
+      const raw = intOrNull(el.cap);
+      return raw === null ? null : clamp(raw, BASE_CAP, t.capMax);
+    }
+    /**
+     * 当前修炼等级不能超过当前修炼上限（游戏里的硬约束）：超了就**就地**夹到上限。
+     * 只在用户正在编辑「当前等级」时调用，能顺手清掉不再需要的提示。
+     */
+    function trimLvOnEdit(){
+      const cap = effCap(), raw = intOrNull(el.lv);
+      if (cap !== null && raw !== null && raw > cap){ el.lv.value = String(cap); state.lvTrimmed = cap; }
+      else state.lvTrimmed = null;
+    }
+    /** 被动夹紧（上限被改小 / 换类型）：只记录提示，不清提示 */
+    function trimLvAgainstCap(){
+      const cap = effCap(), raw = intOrNull(el.lv);
+      if (cap !== null && raw !== null && raw > cap){ el.lv.value = String(cap); state.lvTrimmed = cap; }
+    }
+    /** 只更新范围提示 / 占位 / 禁用态，绝不碰用户正在输入的值 */
+    function applyMeta(t, r){
+      el.cap.disabled = !t.canLower;
+      const capNow = r.cap === null ? t.capMax : r.cap;
+      el.lv.min = '0';       el.lv.max = String(capNow);      el.lv.placeholder = `0 ~ ${capNow}`;
+      el.cap.min = String(BASE_CAP); el.cap.max = String(t.capMax); el.cap.placeholder = `${BASE_CAP} ~ ${t.capMax}`;
+      el.target.min = '0';   el.target.max = String(t.capMax); el.target.placeholder = `0 ~ ${t.capMax}`;
+      el.lvHint.textContent = `可填 0 ~ ${capNow}`;
+      el.capHint.textContent = t.canLower ? `可填 ${BASE_CAP} ~ ${t.capMax}` : '猎术上限固定 20 级，不适用降修';
+      el.targetHint.textContent = `可填 0 ~ ${t.capMax}`;
+    }
+    /**
+     * 失焦 / 回车时才把超范围的值夹紧写回（空值保持为空）。
+     * 绝不能在 input 事件里做：上限下限是 20，逐字输入「20」时敲下 "2" 就被夹成 20，
+     * 再敲 "0" 变成 200 又被夹成 25 —— 用户永远填不进 20。
+     */
+    function commitInputs(){
+      const t = typeOf(state.typeId), r = read();
+      if (!t.canLower) el.cap.value = String(BASE_CAP);
+      else if (r.cap !== null) el.cap.value = String(r.cap);
+      if (r.lv !== null) el.lv.value = String(r.lv);
+      if (r.target !== null) el.target.value = String(r.target);
+      applyMeta(t, r);
+    }
+
+    function render(){
+      renderOpts();
+      const inp = read();
+      applyMeta(inp.t, inp);                             // 只刷提示，不改输入值
+      const { t, lv, cap, target, incomplete } = inp;
+
+      // 当前等级被夹到上限时如实说明，绝不默默按另一个数字算
+      const trimmed = state.lvTrimmed === null ? '' : ui.alert(
+        `⚠️ 当前修炼等级不能超过当前修炼上限（${state.lvTrimmed} 级），已按 ${state.lvTrimmed} 级计算。`);
+
+      if (incomplete){                                   // 没填完就不算，避免一进来就砸一堆数字
+        el.result.innerHTML = ui.idle('填写左侧三项数据后自动计算') + trimmed;
+        return;
+      }
+      const r = compute(t, lv, cap, target);
+      if (!r.ok){ el.result.innerHTML = trimmed + ui.alert('⚠️ ' + esc(r.error)); return; }
+
+      let html = trimmed + ui.stats([{
+        k: '需要花费', tone: 'gold', hero: true,
+        v: fmt.cn(r.newMoney), sub: `${fmt.num(r.newMoney)} 梦幻币`,
+      }]);
+      html += `<div class="summary"><b>${esc(t.name)}</b> ：${lv} 级 → ${target} 级` +
+              (r.lowerCount ? `（上限 ${cap} → ${r.capFinal}）` : '') + `</div>`;
+      if (r.notice) html += ui.alert(esc(r.notice));
+
+      if (r.lowerCount > 0){
+        html += ui.pills([
+          { text: `降修 <b>${r.lowerCount}</b> 次` },
+          { text: `上限 <b>${cap} → ${r.capFinal}</b>` },
+          { text: `降修后 <b>${r.levelAfterLower} 级</b>` },
+          { text: `降修沉没损失 <b>${fmt.cn(r.sunkMoney)}</b>`, tone:'warn' },
+        ]);
+        html += ui.table({
+          cls: 'tall flow',
+          head: ['#', '操作', '修炼等级', '修炼上限', '本步花费', '沉没损失'],
+          rows: r.flow.map(f => ({
+            cls: f.op === '降修' ? 'lower' : '',
+            cells: [f.i, { text:f.op, cls:'op' }, f.level, f.cap,
+                    f.money ? fmt.cn(f.money) : '—', f.sunk ? fmt.cn(f.sunk) : '—'],
+          })),
+          total: [{ text:`合计（终态 ${r.levelFinal} 级 / 上限 ${r.capFinal}）`, colspan:4 }, fmt.cn(r.newMoney), fmt.cn(r.sunkMoney)],
+        });
+      }
+      el.result.innerHTML = html;
+    }
+
+    /* ---------- 交互 ---------- */
+    el.opts.addEventListener('click', e => {
+      const b = e.target.closest('[data-opt]'); if (!b) return;
+      state.typeId = b.dataset.opt;
+      state.lvTrimmed = null;                            // 换类型先撤掉旧提示
+      syncCapForType();                                  // 猎术上限钉回 20（其余原样保留）
+      trimLvAgainstCap();                                // 新上限可能更低，超了就地夹
+      invalidate();
+    });
+    el.lv.addEventListener('input', () => { trimLvOnEdit(); invalidate(); });   // 当前等级：超上限就地夹 + 提示
+    el.cap.addEventListener('input', () => {
+      if (intOrNull(el.cap) === null) state.lvTrimmed = null;                   // 上限被清空，提示作废
+      invalidate();
+    });
+    el.target.addEventListener('input', () => invalidate());
+    [el.lv, el.cap, el.target].forEach(node => {
+      // 失焦/回车：夹紧写回；上限变化还要顺带把「当前等级 ≤ 上限」重新夹一次
+      node.addEventListener('change', () => { trimLvAgainstCap(); commitInputs(); invalidate(); });
+      node.addEventListener('blur',   () => { trimLvAgainstCap(); commitInputs(); invalidate(); });
+    });
+
+    return { render };
+  },
+});
+
+/* ============================================================
+   4. 工具：师门技能
+   ============================================================ */
+Tools.register({
+  id: 'skill',
+  name: '师门技能',
+  tagline: '技能 0–180 级的经验与金钱消耗',
+  dataId: 'data-skill',
+  create(ctx){
+    const { host, data, esc, fmt, ui, $, invalidate } = ctx;
+
+    /* ---------- 引擎：调用独立引擎块 ---------- */
+    const { MAXLV, SECTS, MILE, costOf, bandsOf, spellsOf } = SkillEngine(data);
+
+    /* ---------- 状态 ---------- */
+    const state = {
+      mode: 'single',
+      single: { from: null, to: null },                        // null = 还没填
+      batch: { sect: 0, defFrom: null, defTo: null, active: 0, rows: [] },
+    };
+    function resetRows(){
+      const s = SECTS[state.batch.sect];
+      state.batch.rows = s.skills.map(() => ({ on:true, from:state.batch.defFrom, to:state.batch.defTo }));
+    }
+    function normalize(from, to, src){
+      from = Math.max(0, Math.min(MAXLV - 1, from | 0 || 0));
+      to   = Math.max(1, Math.min(MAXLV,     to   | 0 || 1));
+      if (from >= to){
+        if (src === 'from') to = Math.min(MAXLV, from + 1);
+        else                from = Math.max(0, to - 1);
+      }
+      return { from, to };
+    }
+    function activeRows(){
+      const s = SECTS[state.batch.sect];
+      return state.batch.rows.map((r, i) => ({ ...r, idx:i, skill:s.skills[i] })).filter(r => r.on);
+    }
+    resetRows();
+
+    /* ---------- 骨架 ---------- */
+    const PRESET_FROM = [0, 50, 79, 99, 119, 130, 150, 160, 170];
+    const PRESET_TO   = [79, 99, 119, 130, 139, 150, 160, 170, 174, 180];
+    const chips = (attr, list) => list.map(v =>
+      `<button type="button" class="chip" data-${attr}="${v}">${v}</button>`).join('');
+
+    host.innerHTML = `
+      ${ui.seg([{ id:'single', name:'单个技能' }, { id:'batch', name:'组合计算（整个门派）' }], 'single')}
+      <div class="grid two" id="sk-grid">
+        <div class="card">
+          <h2 id="sk-panel-title">等级区间</h2>
+          <div id="sk-panel-single">
+            <div class="field">
+              <div class="slider-hd"><label class="f" for="sk-from" style="margin:0">当前等级</label><span class="tips">0 – 179</span></div>
+              <input id="sk-from" type="number" min="0" max="179" step="1" placeholder="0 ~ 179" style="margin-top:6px">
+              <div class="rwrap">
+                <input id="sk-from-r" type="range" min="0" max="179" step="1" value="0" aria-label="当前等级">
+                <span class="rval" id="sk-from-v" hidden></span>
+              </div>
+              <div class="presets">${chips('from', PRESET_FROM)}</div>
+            </div>
+            <div class="field" style="margin-bottom:2px">
+              <div class="slider-hd"><label class="f" for="sk-to" style="margin:0">目标等级</label><span class="tips">1 – 180</span></div>
+              <input id="sk-to" type="number" min="1" max="180" step="1" placeholder="1 ~ 180" style="margin-top:6px">
+              <div class="rwrap">
+                <input id="sk-to-r" type="range" min="1" max="180" step="1" value="1" aria-label="目标等级">
+                <span class="rval" id="sk-to-v" hidden></span>
+              </div>
+              <div class="presets">${chips('to', PRESET_TO)}</div>
+            </div>
+          </div>
+          <div id="sk-panel-batch" hidden>
+            <div class="field">
+              <label class="f" for="sk-sect">门派</label>
+              <select id="sk-sect"></select>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label class="f">统一设置（可再逐个微调）</label>
+              <div class="bulk">
+                <input id="sk-def-from" type="number" min="0" max="179" step="1" placeholder="0 ~ 179" aria-label="统一当前等级">
+                <span>→</span>
+                <input id="sk-def-to" type="number" min="1" max="180" step="1" placeholder="1 ~ 180" aria-label="统一目标等级">
+                <button type="button" id="sk-apply">应用</button>
+              </div>
+              <div class="bulk" style="margin-top:8px">
+                <button type="button" id="sk-all">全选</button>
+                <button type="button" id="sk-none">全不选</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="sk-card-skills" hidden>
+          <h2>师门技能</h2>
+          <div id="sk-list"></div>
+          <div class="tips" style="margin-top:10px;line-height:1.7">
+            最上面的是<b>主技能</b>，其余技能等级不能超过它。<br>点技能名，右侧看它包含的法术。
+          </div>
+        </div>
+
+        <div class="card" id="sk-card-spells" hidden>
+          <h2>法术详情</h2>
+          <div id="sk-spells"></div>
+        </div>
+
+        <div class="card span-all">
+          <h2>计算结果</h2>
+          <div id="sk-err" hidden></div>
+          <div id="sk-stats"></div>
+          <div class="summary" id="sk-summary"></div>
+          <div id="sk-batch-box" hidden></div>
+          <details id="sk-detail" hidden>
+            <summary id="sk-detail-sum">消耗明细</summary>
+            <div id="sk-band-box"></div>
+            <div class="side-note">按每 5 级归为一档统计</div>
+          </details>
+        </div>
+      </div>`;
+
+    const el = {
+      grid: $('#sk-grid', host), title: $('#sk-panel-title', host),
+      panelSingle: $('#sk-panel-single', host), panelBatch: $('#sk-panel-batch', host),
+      cardSkills: $('#sk-card-skills', host), cardSpells: $('#sk-card-spells', host),
+      from: $('#sk-from', host), to: $('#sk-to', host),
+      fromR: $('#sk-from-r', host), toR: $('#sk-to-r', host),
+      fromV: $('#sk-from-v', host), toV: $('#sk-to-v', host),
+      sect: $('#sk-sect', host), defFrom: $('#sk-def-from', host), defTo: $('#sk-def-to', host),
+      list: $('#sk-list', host), spells: $('#sk-spells', host),
+      err: $('#sk-err', host), stats: $('#sk-stats', host), summary: $('#sk-summary', host),
+      batchBox: $('#sk-batch-box', host), detail: $('#sk-detail', host),
+      detailSum: $('#sk-detail-sum', host), bandBox: $('#sk-band-box', host),
+    };
+
+    let builtSect = -1, bandKey = null, bandTimer = null;
+    const setIf = (node, v) => { if (String(node.value) !== String(v)) node.value = v; };
+
+    /* ---------- 填写状态：null = 还没填，填完才算 ---------- */
+    const toInt = v => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : null; };
+    const clampInt = (v, a, b) => Math.min(Math.max(v, a), b);
+    const ready = r => r.from !== null && r.to !== null;
+
+    /**
+     * 滑条悬停气泡：鼠标移到滑条上（还没点）就**预览这个位置会选到几级**，不改动实际值。
+     * 反算：把光标 x 映射到 [min,max]，按 step 吸附；气泡位置按预览值对应的滑块中心算
+     * left = pct% ± (9 − 18×pct)px（9 = 滑块半径，18 = 滑块直径，与 CSS 一致）
+     */
+    function bindRangeBubble(range, bubble){
+      let dragging = false;
+      const THUMB = 18, R = THUMB / 2;
+      const bounds = () => {
+        const min = +range.min || 0, max = +range.max || 100, step = +range.step || 1;
+        return { min, max, step };
+      };
+      const valueAt = clientX => {
+        const { min, max, step } = bounds();
+        const rect = range.getBoundingClientRect();
+        const usable = Math.max(1, rect.width - THUMB);          // 轨道可用宽
+        const pct = Math.min(1, Math.max(0, (clientX - rect.left - R) / usable));
+        const snapped = Math.round((min + pct * (max - min) - min) / step) * step + min;
+        return Math.min(max, Math.max(min, snapped));
+      };
+      const show = v => {
+        const { min, max } = bounds();
+        const pct = Math.min(1, Math.max(0, (v - min) / (max - min || 1)));
+        const off = R - THUMB * pct;
+        bubble.textContent = v;
+        bubble.style.left = `calc(${(pct * 100).toFixed(3)}% ${off < 0 ? '-' : '+'} ${Math.abs(off).toFixed(2)}px)`;
+        bubble.hidden = false;
+      };
+      const onMove = e => show(Number.isFinite(e && e.clientX) ? valueAt(e.clientX) : +range.value);
+      range.addEventListener('mouseenter', onMove);
+      range.addEventListener('mousemove',  onMove);
+      range.addEventListener('input',      () => { if (!bubble.hidden) show(+range.value); });  // 拖动/键盘改值时同步
+      range.addEventListener('mousedown',  () => { dragging = true; });
+      range.addEventListener('mouseup',    () => { dragging = false; });
+      range.addEventListener('mouseleave', () => { if (!dragging) bubble.hidden = true; });
+      // 拖到滑条外面松手时也要能收起（迷你 DOM 没有 document.addEventListener，跳过即可）
+      if (typeof document.addEventListener === 'function')
+        document.addEventListener('mouseup', () => { if (dragging){ dragging = false; bubble.hidden = true; } });
+    }
+    /** 写入一个端点；两项都填了才统一夹紧（保证 当前 < 目标） */
+    function putLevel(target, which, raw){
+      const v = String(raw ?? '').trim();
+      const n = v === '' ? null : toInt(v);
+      target[which] = n === null ? null
+        : which === 'from' ? clampInt(n, 0, MAXLV - 1) : clampInt(n, 1, MAXLV);
+      if (ready(target)){
+        const f = normalize(target.from, target.to, which);
+        target.from = f.from; target.to = f.to;
+      }
+    }
+
+    bindRangeBubble(el.fromR, el.fromV);
+    bindRangeBubble(el.toR, el.toV);
+
+    /* ---------- 渲染 ---------- */
+    function renderMode(){
+      const batch = state.mode === 'batch';
+      [...host.querySelectorAll('[data-seg]')].forEach(b => b.classList.toggle('active', b.dataset.seg === state.mode));
+      el.panelSingle.hidden = batch;
+      el.panelBatch.hidden  = !batch;
+      el.cardSkills.hidden  = !batch;
+      el.cardSpells.hidden  = !batch;
+      el.grid.classList.toggle('batch', batch);
+      el.grid.classList.toggle('two', !batch);
+      el.title.textContent = batch ? '门派与统一设置' : '等级区间';
+    }
+
+    /**
+     * 技能说明精简成属性标签（跟「主技能」同样的 tag 样式，换个颜色）：
+     *   「按技能等级提高躲避力」「按技能等级提伤害力」「按等级提高躲避」「提高角色的躲避」→「躲避」
+     *   「按等级提高法伤和法防」→「法伤」「法防」
+     * 数据里 4 种前缀都覆盖了；长句说明（花果山/天机城主技能等）与「无」返回 []，不占位置。
+     * 末尾的「力」只在超过两个字时去掉，好让「伤害力/伤害」统一成「伤害」，同时保住「灵力」。
+     */
+    const ATTR_RE = /^(?:按(?:技能)?等级提(?:高)?|提高角色的?)(.+)$/;
+    function attrTags(effect){
+      const m = ATTR_RE.exec(String(effect || '').trim());
+      if (!m) return [];
+      return m[1].split(/[和、,]/).map(s => s.trim()).filter(Boolean)
+        .map(t => (t.length > 2 && t.endsWith('力')) ? t.slice(0, -1) : t);
+    }
+
+    function renderSkillList(){
+      const idx = state.batch.sect;
+      if (builtSect === idx) return;
+      builtSect = idx;
+      const sect = SECTS[idx];
+      el.list.innerHTML = sect.skills.map((k, i) => {
+        const r = state.batch.rows[i], n = esc(k.name);
+        const tags = attrTags(k.effect).map(a => `<span class="tag attr">${esc(a)}</span>`).join('');
+        return `<div class="skrow${r.on ? '' : ' off'}${state.batch.active === i ? ' active' : ''}" data-i="${i}">
+          <input type="checkbox" ${r.on ? 'checked' : ''} aria-label="${n}">
+          <div>
+            <div class="sk-name" role="button" tabindex="0">${n}${
+              k.main ? '<span class="tag">主技能</span>' : ''}${tags}</div>
+            <div class="sk-lv">
+              <input type="number" class="lv-from" min="0" max="179" step="1" value="${r.from === null ? '' : r.from}" placeholder="0 ~ 179" aria-label="${n} 当前等级">
+              <span>→</span>
+              <input type="number" class="lv-to" min="1" max="180" step="1" value="${r.to === null ? '' : r.to}" placeholder="1 ~ 180" aria-label="${n} 目标等级">
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderSpellPanel(){
+      const sect = SECTS[state.batch.sect];
+      const skill = sect.skills[state.batch.active] || sect.skills[0];
+      if (!skill){ el.spells.innerHTML = ui.idle('请选择技能'); return; }
+      const spells = spellsOf(sect, skill);
+      const head = `<div class="sp-hd">
+          <div class="sp-hd-name">${esc(skill.name)}${skill.main ? '<span class="tag">主技能</span>' : ''}</div>
+          ${skill.effect ? `<div class="sk-line" style="margin-top:6px"><b>提升：</b>${esc(skill.effect)}</div>` : ''}
+          ${skill.desc   ? `<div class="sk-desc">${esc(skill.desc)}</div>` : ''}
+        </div>`;
+      if (!spells.length){
+        el.spells.innerHTML = head + ui.idle('该技能没有独立法术，主要提供属性加成。');
+        return;
+      }
+      el.spells.innerHTML = head + `<div class="sp-list">${spells.map(sp => `
+        <div class="sp-item">
+          <div class="sp-name">${esc(sp.name)}${
+            sp.unlock ? `<span class="unlock">${esc(sp.unlock[0])} 达 ${sp.unlock[1]} 级可学</span>` : ''}</div>
+          <div class="sp-text">${sp.text.split('\\n').map(l => `<div>${esc(l)}</div>`).join('')}</div>
+          ${sp.milestones ? `<div class="sp-mile"><b>等级里程碑：</b>${
+            sp.milestones.map(([lv, eff]) => `<span class="mi"><i>${lv}</i>${esc(eff)}</span>`).join('')
+          }</div>` : ''}
+        </div>`).join('')}</div>`;
+    }
+
+    function scheduleBands(ranges, key){
+      if (key === bandKey) return;
+      if (!el.detail.open){ bandKey = key; return; }
+      clearTimeout(bandTimer);
+      bandTimer = setTimeout(() => {
+        const bands = bandsOf(ranges);
+        el.bandBox.innerHTML = ui.table({
+          cls: 'tall',
+          head: ['等级区间', '经验', '金钱', '钱/经验'],
+          rows: bands.map(b => ({
+            cells: [b.lo === b.hi ? `${b.lo}` : `${b.lo} – ${b.hi}`,
+                    fmt.num(b.exp), fmt.num(b.gold),
+                    { text: (b.gold / b.exp).toFixed(3), cls: 'side-note' }],
+          })),
+        });
+        el.detailSum.textContent = `消耗明细（每 5 级一档，共 ${bands.length} 档）`;
+        bandKey = key;
+      }, 110);
+    }
+
+    function render(){
+      renderMode();
+      el.summary.hidden = false;                  // 空 div 会露出虚线框，待填写时单独隐藏
+
+      if (state.mode === 'single'){
+        const { from, to } = state.single;
+        setIf(el.from, from === null ? '' : from);
+        setIf(el.to,   to   === null ? '' : to);
+        setIf(el.fromR, from === null ? 0 : from);
+        setIf(el.toR,   to   === null ? 1 : to);
+        el.err.hidden = true;
+        el.batchBox.hidden = true;
+        if (from === null || to === null){          // 没填完不算，避免一进来就砸一堆数字
+          el.stats.innerHTML = ui.idle('填写当前等级与目标等级后自动计算');
+          el.summary.hidden = true;
+          el.detail.hidden = true;
+          bandKey = null;
+          return;
+        }
+        el.detail.hidden = false;
+        const r = costOf(from, to);
+        el.stats.innerHTML = ui.stats([
+          { k:'消耗经验', v: fmt.cn(r.exp), sub: fmt.num(r.exp), tone:'jade' },
+          { k:'消耗金钱', v: fmt.cn(r.gold), sub: fmt.num(r.gold), tone:'gold' },
+        ]);
+        el.summary.innerHTML = `<b>${from}</b> 级 → <b>${to}</b> 级，共 <b>${r.levels}</b> 级<br>` +
+          `平均每级 经验 <b>${fmt.num(r.exp / r.levels)}</b> · 金钱 <b>${fmt.num(r.gold / r.levels)}</b>`;
+        scheduleBands([[from, to]], `${from}|${to}`);
+        return;
+      }
+
+      /* ---------- 批量 ---------- */
+      renderSkillList();
+      renderSpellPanel();
+      const sect = SECTS[state.batch.sect];
+      const rows = activeRows();
+
+      [...el.list.querySelectorAll('.skrow')].forEach(node => {
+        const i = +node.dataset.i, r = state.batch.rows[i];
+        node.classList.toggle('off', !r.on);
+        node.classList.toggle('active', state.batch.active === i);
+        const cb = node.querySelector('input[type=checkbox]');
+        if (cb.checked !== r.on) cb.checked = r.on;
+        setIf(node.querySelector('.lv-from'), r.from === null ? '' : r.from);
+        setIf(node.querySelector('.lv-to'),   r.to   === null ? '' : r.to);
+      });
+
+      const filled = rows.filter(ready);            // 勾选且等级填完的才算
+
+      if (!filled.length){                          // 没填完不算
+        el.stats.innerHTML = ui.idle('填写各技能等级后自动计算');
+        el.summary.innerHTML = `<b>${esc(sect.name)}</b>：` + (rows.length
+          ? `已选 <b>${rows.length}</b> 个技能，但等级还没填`
+          : '尚未勾选任何技能');
+        el.batchBox.hidden = true;
+        el.detail.hidden = true;
+        bandKey = null;
+        el.detailSum.textContent = '消耗明细';
+        el.bandBox.innerHTML = '';
+        return;
+      }
+      el.detail.hidden = false;
+
+      let totalExp = 0, totalGold = 0, totalLevels = 0;
+      const lines = filled.map(r => {
+        const c = costOf(r.from, r.to);
+        totalExp += c.exp; totalGold += c.gold; totalLevels += c.levels;
+        return { r, c };
+      });
+      el.stats.innerHTML = ui.stats([
+        { k:'消耗经验', v: fmt.cn(totalExp), sub: fmt.num(totalExp), tone:'jade' },
+        { k:'消耗金钱', v: fmt.cn(totalGold), sub: fmt.num(totalGold), tone:'gold' },
+      ]);
+      el.summary.innerHTML = `<b>${esc(sect.name)}</b> · 已选 <b>${rows.length}</b> / 7 个师门技能，` +
+        (filled.length < rows.length ? `其中 <b>${filled.length}</b> 个已填等级` : `共 <b>${totalLevels}</b> 级`);
+      el.batchBox.hidden = false;
+      el.batchBox.innerHTML = ui.table({
+        cls: 'tall',
+        head: ['师门技能', '区间', '经验', '金钱'],
+        rows: lines.map(({ r, c }) => ({
+          cells: [`${esc(r.skill.name)}${r.skill.main ? ' <span class="tag">主</span>' : ''}`,
+                  `${r.from} → ${r.to}`, fmt.num(c.exp), fmt.num(c.gold)],
+        })),
+        total: ['合计', `${filled.length} 个技能`, fmt.num(totalExp), fmt.num(totalGold)],
+      });
+      scheduleBands(filled.map(r => [r.from, r.to]), filled.map(r => r.from + '-' + r.to).join('|'));
+    }
+
+    /* ---------- 交互 ---------- */
+    const onSingle = (which, raw) => { putLevel(state.single, which, raw); invalidate(); };
+    el.from.addEventListener('input',  () => onSingle('from', el.from.value));
+    el.to.addEventListener('input',    () => onSingle('to',   el.to.value));
+    el.fromR.addEventListener('input', () => onSingle('from', el.fromR.value));
+    el.toR.addEventListener('input',   () => onSingle('to',   el.toR.value));
+
+    host.addEventListener('click', e => {
+      const seg = e.target.closest('[data-seg]');
+      if (seg){ state.mode = seg.dataset.seg; invalidate(); return; }
+      const chip = e.target.closest('.chip[data-from],.chip[data-to]');
+      if (chip){
+        if (chip.dataset.from !== undefined) onSingle('from', chip.dataset.from);
+        else                                 onSingle('to',   chip.dataset.to);
+        return;
+      }
+      if (e.target.closest('.skrow') && !e.target.closest('input')){
+        const i = +e.target.closest('.skrow').dataset.i;
+        if (state.batch.active !== i){ state.batch.active = i; invalidate(); }
+      }
+    });
+    host.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const name = e.target.closest('.sk-name'); if (!name) return;
+      e.preventDefault();
+      state.batch.active = +name.closest('.skrow').dataset.i;
+      invalidate();
+    });
+
+    el.sect.addEventListener('change', () => {
+      state.batch.sect = +el.sect.value;
+      state.batch.active = 0;
+      resetRows(); builtSect = -1; invalidate();
+    });
+    $('#sk-apply', host).addEventListener('click', () => {
+      const a = toInt(el.defFrom.value), b = toInt(el.defTo.value);
+      if (a === null || b === null) return;         // 统一设置没填完就不应用
+      const f = normalize(a, b, 'to');
+      state.batch.defFrom = f.from; state.batch.defTo = f.to;
+      state.batch.rows.forEach(r => { r.from = f.from; r.to = f.to; });
+      invalidate();
+    });
+    $('#sk-all', host).addEventListener('click',  () => { state.batch.rows.forEach(r => r.on = true);  invalidate(); });
+    $('#sk-none', host).addEventListener('click', () => { state.batch.rows.forEach(r => r.on = false); invalidate(); });
+
+    el.list.addEventListener('input', e => {
+      const row = e.target.closest('.skrow'); if (!row) return;
+      const r = state.batch.rows[+row.dataset.i];
+      if (e.target.type === 'checkbox'){ r.on = e.target.checked; invalidate(); return; }
+      putLevel(r, e.target.classList.contains('lv-from') ? 'from' : 'to', e.target.value);
+      invalidate();
+    });
+    el.detail.addEventListener('toggle', () => { if (el.detail.open){ bandKey = null; invalidate(); } });
+
+    el.sect.innerHTML = SECTS.map((s, i) =>
+      `<option value="${i}">${esc(s.name)}${s.abbr ? '（' + esc(s.abbr) + '）' : ''}</option>`).join('');
+    el.sect.value = '0';
+
+    return { render };
+  },
+});
+
+
+/* ============================================================
+   4.5 工具：乾元丹（奇经八脉）
+   ============================================================ */
+Tools.register({
+  id: 'qianyuan',
+  name: '乾元丹',
+  tagline: '奇经八脉乾元丹的经验与金钱消耗',
+  dataId: null,
+  create(ctx){
+    const { host, fmt, ui, $, invalidate } = ctx;
+    const { MAX, costBetween } = QianyuanEngine;
+
+    /**
+     * 下拉候选列表只放纯数字（from…to），目标下拉因此天然不含 0。
+     * 未选择的状态用 hidden 占位项表达：selected 让框里显示「请选择」，
+     * hidden 让它**不出现在展开的候选列表里** —— 所以列表里既没有「请选择」，也仍然能"进来不预选"。
+     */
+    const options = (from, to) => `<option value="" disabled selected hidden>请选择</option>` +
+      Array.from({ length: to - from + 1 }, (_, i) => from + i)
+        .map(n => `<option value="${n}">${n}</option>`).join('');
+
+    const selOf = id => {
+      const v = $('#' + id, host).value;
+      return v === '' ? null : Math.max(0, Math.min(MAX, parseInt(v, 10) || 0));
+    };
+
+    host.innerHTML = `
+      <div class="grid two" id="qy-grid">
+        <div class="card">
+          <h2>目标与当前</h2>
+          <div class="field">
+            <label class="f" for="qy-cur">当前已有乾元丹</label>
+            <select id="qy-cur">${options(0, MAX - 1)}</select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label class="f" for="qy-target">目标乾元丹</label>
+            <select id="qy-target">${options(1, MAX)}</select>
+          </div>
+        </div>
+        <div class="card">
+          <h2>计算结果</h2>
+          <div id="qy-result"></div>
+        </div>
+      </div>`;
+
+    function renderPlan(){
+      const cur = selOf('qy-cur'), target = selOf('qy-target');
+
+      if (cur === null || target === null){          // 没选完不算
+        $('#qy-result', host).innerHTML = ui.idle('选择当前与目标丹数后自动计算');
+        return;
+      }
+      if (target <= cur){
+        $( '#qy-result', host).innerHTML = ui.idle(
+          cur === target ? `当前已经是第 ${cur} 个，无需提升。` : '目标丹数不能小于当前丹数。');
+        return;
+      }
+      const r = costBetween(cur, target);
+      let html = ui.stats([
+        { k:'消耗经验', v: fmt.cn(r.exp), sub: fmt.num(r.exp), tone:'jade' },
+        { k:'消耗金钱', v: fmt.cn(r.money), sub: fmt.num(r.money), tone:'gold' },
+      ]);
+      html += `<div class="summary">第 <b>${cur}</b> 个 → 第 <b>${target}</b> 个，共 <b>${r.count}</b> 个乾元丹</div>`;
+      html += ui.table({
+        cls: 'tall',
+        head: ['乾元丹', '需等级', '经验', '金钱'],
+        rows: r.steps.map(d => ({
+          cells: [`第 ${d.n} 个`, `${d.level} 级`, fmt.num(d.exp), fmt.num(d.money)],
+        })),
+        total: ['合计', `${r.count} 个`, fmt.num(r.exp), fmt.num(r.money)],
+      });
+      $('#qy-result', host).innerHTML = html;
+    }
+
+    function render(){
+      renderPlan();
+    }
+
+    /* ---------- 交互 ---------- */
+    ['qy-cur', 'qy-target'].forEach(id => {
+      const node = $('#' + id, host);
+      node.addEventListener('input', invalidate);
+      node.addEventListener('change', invalidate);
+    });
+
+    return { render };
+  },
+});
+
+/* ============================================================
+   5. 启动
+   ============================================================ */
+Tools.boot(document.getElementById('host'));
+
+/* ============================================================
+   6. 静默数据校验：只在出错时打印到控制台，不占界面
+   ============================================================ */
+(function selfCheck(){
+  const sum = (a, b, arr) => { let s = 0; for (let L = a; L <= b; L++) s += arr[L-1]; return s; };
+  const bad = [];
+  try {
+    const d = JSON.parse(document.getElementById('data-skill').textContent);
+    const cases = [
+      [1,25,33565,12575],[26,50,597117,223907],[51,75,3330833,1249053],[76,100,11134719,4175511],
+      [101,125,28158769,10559531],[126,150,59802983,22426112],[151,155,34997116,13123917],
+      [156,160,59386604,22269975],[161,180,462942760,138882810],
+      [151,160,94383720,35393892],[151,180,557326480,174276702],[175,180,200884590,60265374],
+    ];
+    for (const [a, b, e, g] of cases){
+      if (sum(a, b, d.cost.exp) !== e || sum(a, b, d.cost.gold) !== g) bad.push(`师门技能 ${a}-${b}`);
+    }
+    if (d.sects.length !== 21) bad.push('门派数不是 21');
+  } catch (err){ bad.push('师门技能数据岛解析失败: ' + err.message); }
+
+  if (bad.length) console.error('[数据自检未通过]', bad);
+  else console.log('[数据自检] 师门技能 12/12 通过');
+})();
+</script>
+</body>
+</html>

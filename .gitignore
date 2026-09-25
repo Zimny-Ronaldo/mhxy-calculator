@@ -1,0 +1,28 @@
+# 本项目是零依赖的单文件 HTML 工具，没有构建产物。
+# 下面这些正常情况下都不该出现，加进来只为防误提交。
+
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+
+# 日志与临时文件
+*.log
+*.tmp
+*.temp
+*.bak
+*.orig
+*~
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 操作系统杂项
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
