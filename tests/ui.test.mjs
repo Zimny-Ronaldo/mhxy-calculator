@@ -31,8 +31,8 @@ try {
    ============================================================ */
 console.log('\n── 外壳 ──');
 const tabs = $$('#tabs button');
-check('渲染出 3 个工具页签', tabs.length === 3, tabs.map(b => b.textContent).join(' / '));
-check('页签名称正确', tabs.map(b => b.textContent).join('/') === '人物修炼/师门技能/乾元丹');
+check('渲染出 4 个工具页签', tabs.length === 4, tabs.map(b => b.textContent).join(' / '));
+check('页签名称正确', tabs.map(b => b.textContent).join('/') === '人物修炼/师门技能/乾元丹/生活技能');
 check('默认激活第一个工具（人物修炼）', tabs[0].classList.contains('active'));
 check('默认加载人物修炼', !!$('.tool-xiulian') && !$('.tool-xiulian').hidden);
 check('未激活的工具尚未创建（懒加载）', $('.tool-skill') === null);
@@ -42,11 +42,19 @@ check('hash 同步为工具 id', globalThis.location.hash === 'xiulian', globalT
    师门技能工具
    ============================================================ */
 console.log('\n── 师门技能 ──');
+// 顺序偏好（用户指定）：结果里**金钱排在经验前面**
+const headOrder = html => { const a = html.indexOf('<th>金钱</th>'), b = html.indexOf('<th>经验</th>'); return a > -1 && b > -1 && a < b; };
+
 $$('#tabs button')[1].fire('click');
 check('切到师门技能工具', !!$('.tool-skill') && !$('.tool-skill').hidden && $('.tool-xiulian').hidden);
 const skill = $('.tool-skill');
 const num = sel => $(sel).textContent.replace(/,/g, '');
-const stats = () => $$('.tool-skill .stat .sub').map(e => e.textContent.replace(/,/g, ''));
+const stats = () => $$('.tool-skill .stat').map(s => ({
+  k: s.querySelector('.k').textContent,
+  v: s.querySelector('.v').textContent.replace(/,/g, ''),
+  sub: s.querySelector('.sub').textContent.replace(/,/g, ''),
+}));
+const statOf = k => stats().find(x => x.k === k) || {};
 
 check('默认单个技能模式', $('#sk-panel-single').hidden === false && $('#sk-panel-batch').hidden === true);
 check('单技能模式下技能/法术栏隐藏', $('#sk-card-skills').hidden && $('#sk-card-spells').hidden);
@@ -63,14 +71,16 @@ const setSk = (id, v) => { const n = $('#' + id); n.value = String(v); n.fire('i
 setSk('sk-from', 0);
 check('只填当前等级仍不算', idle('#sk-stats'));
 setSk('sk-to', 150);
-check('填完两项后 0→150 经验', stats()[0] === '103057986', stats().join(' / '));
-check('填完两项后 0→150 金钱', stats()[1] === '38646689');
+check('填完两项后 0→150 经验', statOf('消耗经验').sub === '102987846', stats().map(x => x.k + '=' + x.sub).join(' / '));
+check('填完两项后 0→150 金钱', statOf('消耗金钱').sub === '38646689');
+check('结果卡顺序：金钱在经验前面（用户偏好）',
+  stats()[0].k === '消耗金钱' && stats()[1].k === '消耗经验', stats().map(x => x.k).join(' / '));
 check('算完后显示消耗明细与摘要框', $('#sk-detail').hidden === false && $('#sk-summary').hidden === false);
 
 // 预设与滑条
 $('.tool-skill .chip[data-to="180"]').fire('click');
 check('点目标预设 180 生效', $('#sk-to').value === '180' && $('#sk-from').value === '0', $('#sk-from').value + '→' + $('#sk-to').value);
-check('0→180 经验', stats()[0] === '660384466', stats().join(' / '));
+check('0→180 经验', statOf('消耗经验').sub === '660314326', stats().map(x => x.k + '=' + x.sub).join(' / '));
 
 $('#sk-from-r').value = '170';
 $('#sk-from-r').fire('input');
@@ -105,6 +115,8 @@ $('#sk-from').value = '0'; $('#sk-from').fire('input');
 check('0→180 明细 36 档 + 表头', ($('#sk-band-box').innerHTML.match(/<tr[ >]/g) || []).length === 37,
   String(($('#sk-band-box').innerHTML.match(/<tr[ >]/g) || []).length));
 check('明细标题标注档数', /共 36 档/.test($('#sk-detail-sum').textContent), $('#sk-detail-sum').textContent);
+check('单技能明细表头：金钱在经验前面', headOrder($('#sk-band-box').innerHTML),
+  ($('#sk-band-box').innerHTML.match(/<th>[^<]*<\/th>/g) || []).join(' '));
 
 // 切组合计算
 check('模式改名为「组合计算」',
@@ -133,7 +145,7 @@ check('批量初始无合计表', $('#sk-batch-box').hidden === true);
 check('批量初始无明细', $('#sk-detail').hidden === true);
 $('#sk-def-from').value = '0'; $('#sk-def-to').value = '150';
 $('#sk-apply').fire('click');
-check('应用统一设置后 7 技能合计经验', stats()[0] === '721405902', stats().join(' / '));
+check('应用统一设置后 7 技能合计经验', statOf('消耗经验').sub === '720914922', stats().map(x => x.k + '=' + x.sub).join(' / '));
 
 // 点技能切换
 $$('.tool-skill .skrow')[1].querySelector('.sk-name').fire('click');
@@ -144,14 +156,14 @@ check('第 2 行高亮 / 第 1 行取消', $$('.tool-skill .skrow')[1].classList
 // 勾选与统一设置
 const cb0 = $$('.tool-skill .skrow')[0].querySelector('input[type=checkbox]');
 cb0.checked = false; cb0.fire('input');
-check('取消勾选后合计变为 6 技能', stats()[0] === '618347916', stats().join(' / '));
+check('取消勾选后合计变为 6 技能', statOf('消耗经验').sub === '617927076', stats().map(x => x.k + '=' + x.sub).join(' / '));
 
 $('#sk-def-from').value = '100'; $('#sk-def-to').value = '160';
 $('#sk-apply').fire('click');
 check('应用到全部', $$('.tool-skill .skrow').every(r => r.querySelector('.lv-from').value === '100' && r.querySelector('.lv-to').value === '160'));
-check('6 技能 100→160 合计', stats()[0] === '1094072832', stats().join(' / '));
+check('6 技能 100→160 合计', statOf('消耗经验').sub === '1094072832', stats().map(x => x.k + '=' + x.sub).join(' / '));
 $('#sk-all').fire('click');
-check('全选后 7 技能 100→160 合计', stats()[0] === '1276418304', stats().join(' / '));
+check('全选后 7 技能 100→160 合计', statOf('消耗经验').sub === '1276418304', stats().map(x => x.k + '=' + x.sub).join(' / '));
 
 // 换门派
 $('#sk-sect').value = '5'; $('#sk-sect').fire('change');
@@ -286,13 +298,17 @@ check('目标 ≤ 当前等级 → 提示无需提升', xlOut().includes('无需
    ============================================================ */
 console.log('\n── 乾元丹 ──');
 $$('#tabs button')[2].fire('click');
-check('页签共 3 个', $$('#tabs button').length === 3, $$('#tabs button').map(b => b.textContent).join(' / '));
+check('页签共 4 个', $$('#tabs button').length === 4, $$('#tabs button').map(b => b.textContent).join(' / '));
 check('切到乾元丹工具', !$('.tool-qianyuan').hidden && $('.tool-xiulian').hidden);
 check('hash 同步', globalThis.location.hash === 'qianyuan', globalThis.location.hash);
 
 const qy = $('.tool-qianyuan');
 const qyOut = () => $('#qy-result').innerHTML;
-const qyStats = () => $$('.tool-qianyuan .stat .sub').map(e => e.textContent.replace(/,/g, ''));
+const qyStats = () => $$('.tool-qianyuan .stat').map(s => ({
+  k: s.querySelector('.k').textContent,
+  sub: s.querySelector('.sub').textContent.replace(/,/g, ''),
+}));
+const qyStatOf = k => qyStats().find(x => x.k === k) || {};
 const setQy = (id, v) => { const n = $('#' + id); n.value = String(v); n.fire('change'); };
 
 // 初始不预选、不计算（与人物修炼同一口径）
@@ -313,12 +329,14 @@ setQy('qy-target', 9);
 check('只选目标仍不算', qyOut().includes('选择当前与目标丹数后自动计算'));
 
 setQy('qy-cur', 0);
-check('选完两项后 0→9 经验', qyStats()[0] === '465600800', qyStats().join(' / '));
-check('选完两项后 0→9 金钱', qyStats()[1] === '93120136');
+check('选完两项后 0→9 经验', qyStatOf('消耗经验').sub === '465600800', qyStats().map(x => x.k + '=' + x.sub).join(' / '));
+check('选完两项后 0→9 金钱', qyStatOf('消耗金钱').sub === '93120136');
+check('乾元丹结果卡顺序：金钱在经验前面',
+  qyStats()[0].k === '消耗金钱' && qyStats()[1].k === '消耗经验', qyStats().map(x => x.k).join(' / '));
+check('乾元丹明细表头：金钱在经验前面', headOrder(qyOut()));
 check('明细 表头+9 行+合计', (qyOut().match(/<tr[ >]/g) || []).length === 11,
   String((qyOut().match(/<tr[ >]/g) || []).length));
 check('明细含第 1 个丹 69 级', qyOut().includes('第 1 个') && qyOut().includes('69 级'));
-check('已移除「等价旧丹」列', !qyOut().includes('等价旧丹') && !qyOut().includes('小丹'));
 check('明细只有 4 列', (qyOut().match(/<th>/g) || []).length === 4,
   String((qyOut().match(/<th>/g) || []).length));
 check('已移除人物等级输入', $('#qy-level') === null && !qyOut().includes('人物等级'));
@@ -327,7 +345,7 @@ check('已移除人物等级输入', $('#qy-level') === null && !qyOut().include
 $('#qy-cur').value = '4'; $('#qy-cur').fire('change');
 $('#qy-target').value = '6'; $('#qy-target').fire('change');
 const seg = QianyuanEngineRef().DAN;
-check('第4→第6 经验', qyStats()[0] === String(seg[4].exp + seg[5].exp), qyStats().join(' / '));
+check('第4→第6 经验', qyStatOf('消耗经验').sub === String(seg[4].exp + seg[5].exp), qyStats().map(x => x.k + '=' + x.sub).join(' / '));
 check('第4→第6 共 2 个', qyOut().includes('共 <b>2</b> 个乾元丹'));
 $('#qy-cur').value = '6'; $('#qy-cur').fire('change');
 check('当前 = 目标 时提示无需提升', qyOut().includes('无需提升'));
@@ -337,6 +355,85 @@ check('已移除模式切换', $$('.tool-qianyuan [data-seg]').length === 0);
 check('已移除经验输入与面板', $('#qy-exp') === null && $('#qy-cur2') === null && $('#qy-panel-exp') === null);
 setQy('qy-cur', 0); setQy('qy-target', 9);
 check('仍保留按丹数计算的明细表', qyOut().includes('乾元丹') && qyOut().includes('需等级'));
+
+/* ============================================================
+   生活技能工具
+   ============================================================ */
+console.log('\n── 生活技能 ──');
+$$('#tabs button')[3].fire('click');
+check('切到生活技能工具', !$('.tool-lifeskill').hidden && $('.tool-qianyuan').hidden);
+check('hash 同步', globalThis.location.hash === 'lifeskill', globalThis.location.hash);
+
+const lsOut = () => $('#ls-result').innerHTML;
+/** 四张统计卡：经验/金钱的精确值在 .sub，帮贡两项的精确值在 .v（都按 fmt.num 输出） */
+const lsCards = () => $$('.tool-lifeskill .stat').map(s => ({
+  k: s.querySelector('.k').textContent,
+  v: s.querySelector('.v').textContent.replace(/,/g, ''),
+  sub: s.querySelector('.sub').textContent.replace(/,/g, ''),
+}));
+const lsStatOf = k => lsCards().find(x => x.k === k) || {};
+const setLs = (id, v) => { const n = $('#' + id); n.value = String(v); n.fire('change'); };
+
+check('21 个生活技能可选', $$('#ls-skill option').length === 21,
+  String($$('#ls-skill option').length));
+check('技能下拉默认第一项强身术', $('#ls-skill').value === 'qiangshen');
+check('初始不预填等级', $('#ls-from').value === '' && $('#ls-to').value === '');
+check('初始不算结果，显示待填写',
+  lsOut().includes('填写当前等级与目标等级后自动计算') && !/<div class="stat/.test(lsOut()));
+check('初始隐藏消耗明细', $('#ls-detail').hidden === true);
+setLs('ls-from', 0);
+check('只填一项仍是待填写', lsOut().includes('填写当前等级与目标等级后自动计算'));
+
+setLs('ls-to', 140);
+check('强身术 0→140 经验', lsStatOf('消耗经验').sub === '104406194', lsCards().map(c => c.k + '=' + c.sub).join(' / '));
+check('强身术 0→140 金钱', lsStatOf('消耗金钱').sub === '13901235');
+check('强身术 0→140 消耗帮贡', lsStatOf('消耗帮贡').v === '9870', lsStatOf('消耗帮贡').k + '=' + lsStatOf('消耗帮贡').v);
+check('强身术 0→140 需要持有帮贡（=140×5）', lsStatOf('需要持有帮贡').v === '700', lsStatOf('需要持有帮贡').k + '=' + lsStatOf('需要持有帮贡').v);
+check('生活技能结果卡顺序：金钱在经验前面',
+  lsCards()[0].k === '消耗金钱' && lsCards()[1].k === '消耗经验', lsCards().map(x => x.k).join(' / '));
+check('生活技能明细表头：金钱在经验前面', headOrder($('#ls-detail').innerHTML));
+check('结果区四张统计卡', $$('.tool-lifeskill .stat').length === 4);
+check('摘要写明技能与区间',
+  lsOut().includes('强身术') && /<b>0<\/b> 级 → <b>140<\/b> 级/.test(lsOut()));
+check('明细出现且是 5 级一档', !$('#ls-detail').hidden &&
+  $('#ls-detail').innerHTML.includes('136 → 140'));
+check('技能提示给出上限与学满消耗', $('#ls-skill-hint').textContent.includes('上限 140 级'));
+check('输入框占位跟着技能上限走', $('#ls-to').placeholder === '0 ~ 140', $('#ls-to').placeholder);
+
+// 换技能：冥想上限 160，切换时保留已输入值
+$('#ls-skill').value = 'mingxiang'; $('#ls-skill').fire('change');
+check('切换技能保留已输入等级', $('#ls-from').value === '0' && $('#ls-to').value === '140');
+check('上限提示更新为 160', $('#ls-skill-hint').textContent.includes('上限 160 级'));
+setLs('ls-from', 150); setLs('ls-to', 160);
+check('冥想 150→160 经验（对上真实分段跳变）', lsStatOf('消耗经验').sub === '94383720', lsCards().map(c => c.k + '=' + c.sub).join(' / '));
+check('冥想 150→160 帮贡 1555 / 需持有 800',
+  lsStatOf('消耗帮贡').v === '1555' && lsStatOf('需要持有帮贡').v === '800', lsCards().map(c => c.k + '=' + c.v).join(' / '));
+check('150→160 明细恰两档', ($('#ls-detail').innerHTML.match(/→/g) || []).length === 2,
+  String(($('#ls-detail').innerHTML.match(/→/g) || []).length));
+
+// 超上限：灵石上限 120
+$('#ls-skill').value = 'lingshi'; $('#ls-skill').fire('change');
+setLs('ls-from', 0); setLs('ls-to', 200);
+check('超过上限时就地说明', lsOut().includes('上限为 120 级'), lsOut().slice(0, 90));
+check('超上限后按上限计算（0→120 经验）', lsStatOf('消耗经验').sub === '87583962', lsCards().map(c => c.k + '=' + c.sub).join(' / '));
+check('change 后把越界值夹回上限', $('#ls-to').value === '120', $('#ls-to').value);
+
+// 逐字输入不写回（§8.6）：强壮上限 60
+$('#ls-skill').value = 'qiangzhuang'; $('#ls-skill').fire('change');
+check('逐字输入 60 不被中途改写', typeInto($('#ls-to'), '60') === '60', $('#ls-to').value);
+setLs('ls-from', 0); setLs('ls-to', 60);
+check('强壮 0→60 经验', lsStatOf('消耗经验').sub === '3612200000', lsCards().map(c => c.k + '=' + c.sub).join(' / '));
+check('强壮 0→60 消耗帮贡 1830 / 需持有 300',
+  lsStatOf('消耗帮贡').v === '1830' && lsStatOf('需要持有帮贡').v === '300', lsCards().map(c => c.k + '=' + c.v).join(' / '));
+check('强壮明细 12 档 + 合计行',
+  ($('#ls-detail').innerHTML.match(/<tr[ >]/g) || []).length === 14,
+  String(($('#ls-detail').innerHTML.match(/<tr[ >]/g) || []).length));
+
+// 目标 ≤ 当前
+setLs('ls-to', 0);
+check('目标 = 当前 → 提示无需提升', lsOut().includes('无需提升'));
+setLs('ls-from', 30); setLs('ls-to', 10);
+check('目标 < 当前 → 明确提示', lsOut().includes('不能低于'));
 
 /* ============================================================
    切回师门技能，状态应保留

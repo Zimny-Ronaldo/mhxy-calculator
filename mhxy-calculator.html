@@ -242,9 +242,17 @@ const MAXLV = EXP.length;                       // 180
 const SECTS = data.sects;
 const MILE = data.milestones || {};
 
+/**
+ * 1-30 级官方**只收金钱、不收经验**（官方工具箱接口实测：0→30 = 经验 0 / 金钱 26,291）。
+ * ⚠️ 只在这里置 0，**不要改数据岛里那 30 个经验值** —— 生活技能引擎（engine-lifeskill）
+ * 用的是同一张表，而帮派书院那 1-30 级是照收经验的（官方帮派接口实测）。
+ */
+const FREE_EXP_UNTIL = 30;
+const expOf = L => (L <= FREE_EXP_UNTIL ? 0 : EXP[L-1]);
+
 function costOf(from, to){
   let exp = 0, gold = 0;
-  for (let L = from + 1; L <= to; L++){ exp += EXP[L-1]; gold += GOLD[L-1]; }
+  for (let L = from + 1; L <= to; L++){ exp += expOf(L); gold += GOLD[L-1]; }
   return { exp, gold, levels: Math.max(0, to - from) };
 }
 /** 每 5 级归为一档；支持多段区间合并 */
@@ -257,7 +265,7 @@ function bandsOf(ranges){
       if (!b){ b = { k, lo:L, hi:L, exp:0, gold:0 }; map.set(k, b); }
       if (L < b.lo) b.lo = L;
       if (L > b.hi) b.hi = L;
-      b.exp += EXP[L-1]; b.gold += GOLD[L-1];
+      b.exp += expOf(L); b.gold += GOLD[L-1];
     }
   }
   return [...map.values()].sort((x, y) => x.k - y.k);
@@ -269,7 +277,7 @@ function spellsOf(sect, skill){
   });
 }
 
-  return { MAXLV, SECTS, MILE, costOf, bandsOf, spellsOf };
+  return { MAXLV, SECTS, costOf, bandsOf, spellsOf };
 }
 </script>
 
@@ -335,29 +343,22 @@ function compute(type, level, cap, target){
 /**
  * 乾元丹引擎
  *
- * 数据来源与互相印证：
- *  · 旧版 60 个乾元丹的逐丹数据表（叶子猪「乾元丹经验计算器」）可被一条三次多项式
- *    完全还原，60/60 点精确吻合；金钱恒为 经验的 20%（逐项取下取整）。
- *  · 2022 年新版把 60 个小丹合并为 9 个大丹，合并区间固定，
- *    新版 9 个大丹的消耗与「旧公式按区间求和」逐项相等（9/9 吻合）。
- * 两套独立数据互相验证，故此处直接由公式推导，不写死数字。
+ * 数据是当前版本的 9 个大丹逐丹消耗表（人物经验 / 金钱），直接写死。
+ * 第 8 个比第 7 个便宜、第 9 个比第 8 个便宜，是官方数值本身如此，不是算错。
  */
 const QianyuanEngine = (() => {
-  /** 旧版第 n 个乾元丹所需人物经验 */
-  const oldExp = n => 8 * n ** 3 + 1460 * n ** 2 + 88900 * n + 2806000;
-  /** 旧版第 n 个乾元丹所需金钱 = 经验 × 20%（向下取整） */
-  const oldMoney = n => Math.floor(oldExp(n) * 2 / 10);
-
-  /** 新版大丹 = 旧版小丹的固定区间合并 */
-  const RANGES = [[1,7],[8,14],[15,21],[22,28],[29,35],[36,42],[43,49],[50,55],[56,60]];
-  /** 每个大丹的人物等级门槛 */
-  const LEVELS = [69, 89, 109, 129, 155, 159, 164, 168, 171];
-
-  const DAN = RANGES.map(([from, to], i) => {
-    let exp = 0, money = 0;
-    for (let n = from; n <= to; n++){ exp += oldExp(n); money += oldMoney(n); }
-    return { n: i + 1, level: LEVELS[i], from, to, count: to - from + 1, exp, money };
-  });
+  /** 9 个大丹：人物等级门槛 + 逐丹消耗 */
+  const DAN = [
+    { n:1, level:69,  exp:22341872, money:4468371  },
+    { n:2, level:89,  exp:27846728, money:5569343  },
+    { n:3, level:109, exp:34534248, money:6906847  },
+    { n:4, level:129, exp:42519680, money:8503933  },
+    { n:5, level:155, exp:51918272, money:10383652 },
+    { n:6, level:159, exp:62845272, money:12569051 },
+    { n:7, level:164, exp:75415928, money:15083183 },
+    { n:8, level:168, exp:75977600, money:15195518 },
+    { n:9, level:171, exp:72201200, money:14440238 },
+  ];
   const MAX = DAN.length;
 
   /** 人物等级最多能开几个乾元丹 */
@@ -369,14 +370,14 @@ const QianyuanEngine = (() => {
 
   /** 从「已有 from 个」点到「第 to 个」的累计消耗（含 to） */
   function costBetween(from, to){
-    let exp = 0, money = 0, oldCount = 0;
+    let exp = 0, money = 0;
     const steps = [];
     for (let n = Math.max(0, from) + 1; n <= Math.min(to, MAX); n++){
       const d = DAN[n - 1];
-      exp += d.exp; money += d.money; oldCount += d.count;
+      exp += d.exp; money += d.money;
       steps.push(d);
     }
-    return { exp, money, steps, count: steps.length, oldCount };
+    return { exp, money, steps, count: steps.length };
   }
 
   /** 手上 exp 点经验、已有 from 个丹，最多还能再开几个 */
@@ -391,8 +392,161 @@ const QianyuanEngine = (() => {
     };
   }
 
-  return { DAN, MAX, LEVELS, RANGES, oldExp, oldMoney, capForLevel, costBetween, maxAffordable };
+  return { DAN, MAX, capForLevel, costBetween, maxAffordable };
 })();
+</script>
+
+
+<script id="engine-lifeskill">
+/**
+ * 生活技能引擎（帮派书院里学的生活技能 / 帮派技能）
+ *
+ * 数据出处：官方综合工具箱 xyq.163.com/tools 的「帮派技能计算」，它调的是
+ * 后端接口 /api/get_life_skill_upgrade_need。下面每一张表都是把接口的逐级返回值
+ * 全量拉平后写死的（21 个技能 × 各自上限，共 2660 个等级，逐级零误差）。
+ *
+ * 三条规律（都已逐级核对）：
+ *   1. 经验：绝大多数技能就是「师门技能经验表」（data-skill 的 cost.exp）；
+ *      只有三类技能从某个等级起进入分段倍率：
+ *        强身术   1-120 用师门表，121-140 单列
+ *        打造类   1-150 用师门表，151-160 单列
+ *        灵石技巧 1-80 用师门表后移 15 级（即师门 16-95），81-120 单列
+ *   2. 金钱：**不随经验放大，只跟等级走**（强身术经验翻倍了，金钱仍与冥想相同）。
+ *      所以 1-150 存一张通用表，151-160 分「常规 / 打造类」两段尾巴。
+ *      强壮 / 神速 / 感应是另一套：金钱恒为经验的 1/4（精确整除）。
+ *   3. 帮贡：学第 L 级消耗 L 点 → 跨 [a,b] 消耗 Σ(a+1..b)；
+ *      「需要持有」= 目标等级 × 5（官方接口的 req_bg，只作门槛不扣除）。
+ *
+ * 学费指数：官方 2014-10-13 维护公告已「取消设置学费指数，所有涉及学费指数的
+ * 消耗均按 5 计算」，官方计算器也没有该输入框，所以本工具不提供指数选项。
+ */
+const LifeEngine = (sectExp) => {
+  /** 1-150 级通用金钱（与技能无关，官方接口实测） */
+  const MONEY = [
+    0,5,5,10,15,25,30,40,55,65,85,105,130,160,195,235,280,330,390,455,
+    535,615,710,815,930,1060,1200,1355,1525,1710,1910,2125,2360,2615,2890,3185,3500,3845,4205,4595,
+    5015,5460,5930,6435,6965,7535,8135,8770,9440,10145,10895,11685,12515,13385,14305,15270,16280,17340,18455,19620,
+    20835,22110,23440,24830,26280,27795,29370,31015,32725,34505,36360,38285,40285,42365,44520,46755,49080,51485,53975,56555,
+    59230,61995,64860,67820,70875,74040,77305,80675,84155,87750,91455,95275,99210,103270,107455,111760,116200,120765,125465,130295,
+    135270,140385,145640,151040,156590,162295,168150,174160,180335,186665,193165,199835,206670,213680,220870,228235,235785,243520,251445,259560,
+    267865,276370,285080,293990,303105,312435,321975,331730,341710,351905,362335,372990,383875,395000,406365,417970,429825,441930,454285,466895,
+    479770,492910,506315,519990,533940,548170,562685,577480,592565,607950,
+  ];
+  /** 151-160 金钱：常规技能（冥想 / 中药医理 / 熔炼 …） */
+  const TAIL_SECT = [
+    997800,1023365,1049415,1075965,1103010,1695840,1737935,1780810,1824470,1868925,
+  ];
+  /** 151-160 金钱与经验：打造 / 裁缝 / 炼金 / 淬灵 */
+  const TAIL_CRAFT = [
+    623625,639600,655885,672475,689380,706600,724140,742000,760195,778715,
+  ];
+  const EXP_CRAFT = [
+    5022276,5185064,5352040,5523289,5698889,5878922,6063472,6252624,6446464,6645076,
+  ];
+  /** 121-140 经验：强身术 */
+  const EXP_QIANG = [
+    2142949,2210998,2280652,2351936,2424874,2499493,2575816,2653872,2733684,2815279,
+    3864913,3978568,4094707,4213364,4334579,4458385,4584820,4713920,4845723,4980265,
+  ];
+  /** 81-120 经验：灵石技巧（1-80 走师门表后移 15 级） */
+  const EXP_LING = [
+    894117,929602,966132,1003724,1042399,1082179,1123083,1165132,1208349,1252754,
+    1298368,1345214,1393314,1442688,1493359,1545351,1598685,1653385,1709474,1766974,
+    1825910,1886304,1948180,2011564,2076480,2142949,2210998,2280652,2351936,2424874,
+    2499493,2575816,2653872,2733684,2815279,2898685,2983926,3071030,3160023,3250934,
+  ];
+  /** 1-120 金钱：灵石技巧（与其他技能不同，单列） */
+  const MONEY_LING = [
+    185,225,265,310,365,425,495,570,650,745,845,960,1085,1220,1365,1525,1700,1890,2090,2310,
+    2545,2800,3075,3365,3675,4010,4365,4745,5145,5575,6025,6505,7015,7550,8115,8715,9345,10010,10710,11445,
+    12215,13025,13875,14760,15695,16670,17685,18750,19865,21025,22235,23495,24810,26180,27605,29085,30625,32230,33890,35615,
+    37405,39260,41185,43180,45245,47385,49595,51885,54255,56700,59230,61840,64540,67325,70200,73160,76220,79370,82615,85965,
+    134115,139440,144915,150555,156355,162325,168460,174765,181250,187910,194755,201780,208995,216400,224000,231800,239800,248005,256420,265045,
+    273885,282945,292225,301730,311470,321440,331645,342095,352790,363730,374920,386370,398080,410050,422290,434800,447585,460650,474000,487640,
+  ];
+
+  /** 顺序沿用官方计算器的下拉顺序，sid 就是官方接口的 skill_id，方便和官方对拍 */
+  const SKILLS = [
+    { sid:201, id:'qiangshen',   name:'强身术',   kind:'qiang', cap:140 },
+    { sid:202, id:'mingxiang',   name:'冥想',     kind:'sect',  cap:160 },
+    { sid:203, id:'anqi',        name:'暗器技巧', kind:'sect',  cap:160 },
+    { sid:204, id:'dazao',       name:'打造技巧', kind:'craft', cap:160 },
+    { sid:205, id:'caifeng',     name:'裁缝技巧', kind:'craft', cap:160 },
+    { sid:206, id:'zhongyao',    name:'中药医理', kind:'sect',  cap:160 },
+    { sid:207, id:'lianjin',     name:'炼金术',   kind:'craft', cap:160 },
+    { sid:208, id:'pengren',     name:'烹饪技巧', kind:'sect',  cap:140 },
+    { sid:209, id:'zhuibu',      name:'追捕技巧', kind:'sect',  cap:160 },
+    { sid:210, id:'taoli',       name:'逃离技巧', kind:'sect',  cap:160 },
+    { sid:211, id:'yangsheng',   name:'养生之道', kind:'sect',  cap:160 },
+    { sid:212, id:'jianshen',    name:'健身术',   kind:'sect',  cap:160 },
+    { sid:216, id:'qiaojiang',   name:'巧匠之术', kind:'sect',  cap:160 },
+    { sid:217, id:'ronglian',    name:'熔炼技巧', kind:'sect',  cap:160 },
+    { sid:218, id:'lingshi',     name:'灵石技巧', kind:'ling',  cap:120 },
+    { sid:230, id:'qiangzhuang', name:'强壮',     kind:'spec',  cap:60  },
+    { sid:231, id:'cuiling',     name:'淬灵之术', kind:'craft', cap:160 },
+    { sid:237, id:'shensu',      name:'神速',     kind:'spec',  cap:60  },
+    { sid:239, id:'feng',        name:'风之感应', kind:'spec',  cap:20  },
+    { sid:240, id:'yu',          name:'雨之感应', kind:'spec',  cap:20  },
+    { sid:241, id:'xue',         name:'雪之感应', kind:'spec',  cap:20  },
+  ];
+
+  const skillById = id => SKILLS.find(s => s.id === id) || SKILLS[0];
+
+  /** 强壮 / 神速 / 感应：同一条公式，41 级起额外加 800 万 × (L−40) */
+  const specExp = L => 20000 * L * L + 200000 * L + 1500000 + 8000000 * Math.max(0, L - 40);
+
+  /** 升到第 L 级这一级的花费 */
+  function stepOf(skill, L){
+    if (L < 1 || L > skill.cap) return { exp:0, money:0 };
+    switch (skill.kind){
+      case 'qiang': return { exp: L <= 120 ? sectExp[L-1] : EXP_QIANG[L-121], money: MONEY[L-1] };
+      case 'craft': return L <= 150
+        ? { exp: sectExp[L-1], money: MONEY[L-1] }
+        : { exp: EXP_CRAFT[L-151], money: TAIL_CRAFT[L-151] };
+      case 'ling':  return L <= 80
+        ? { exp: sectExp[L+14], money: MONEY_LING[L-1] }
+        : { exp: EXP_LING[L-81], money: MONEY_LING[L-1] };
+      case 'spec': { const e = specExp(L); return { exp: e, money: e / 4 }; }
+      default:      return { exp: sectExp[L-1], money: L <= 150 ? MONEY[L-1] : TAIL_SECT[L-151] };
+    }
+  }
+
+  /** [from, to] 的累计消耗（不含 from 级、含 to 级）；帮贡门槛只作门槛不扣除 */
+  function costBetween(id, from, to){
+    const skill = skillById(id);
+    const a = Math.max(0, Math.min(Number(from) || 0, skill.cap));
+    const b = Math.max(0, Math.min(Number(to)   || 0, skill.cap));
+    let exp = 0, money = 0;
+    for (let L = a + 1; L <= b; L++){ const s = stepOf(skill, L); exp += s.exp; money += s.money; }
+    return {
+      skill, from:a, to:b, count: Math.max(0, b - a),
+      exp, money,
+      bgUsed: b > a ? (a + 1 + b) * (b - a) / 2 : 0,   // Σ(a+1..b)
+      bgNeed: 5 * b,                                   // 每级需持有 5L，整段取目标等级那一次
+    };
+  }
+
+  /** 每 5 级一档的明细（对齐到 5 的倍数，与师门技能同一口径） */
+  function bandsOf(id, from, to){
+    const skill = skillById(id);
+    const a = Math.max(0, Math.min(Number(from) || 0, skill.cap));
+    const b = Math.max(0, Math.min(Number(to)   || 0, skill.cap));
+    const out = [];
+    for (let L = a + 1; L <= b; L++){
+      const key = Math.ceil(L / 5) * 5;
+      let band = out[out.length - 1];
+      if (!band || band.hi !== Math.min(key, b)){
+        band = { lo:L, hi:Math.min(key, b), exp:0, money:0, bgUsed:0 };
+        out.push(band);
+      }
+      const s = stepOf(skill, L);
+      band.exp += s.exp; band.money += s.money; band.bgUsed += L;
+    }
+    return out;
+  }
+
+  return { SKILLS, skillById, stepOf, costBetween, bandsOf };
+};
 </script>
 
 <script>
@@ -573,7 +727,7 @@ Tools.register({
     const { host, esc, fmt, ui, $, invalidate } = ctx;
 
     /* ---------- 引擎：调用独立引擎块 ---------- */
-    const { expAt, expSum, TYPES, BASE_CAP, compute } = XiulianEngine;
+    const { TYPES, BASE_CAP, compute } = XiulianEngine;
 
     /* ---------- 状态与骨架 ---------- */
     const state = { typeId: TYPES[0].id, lvTrimmed: null };   // lvTrimmed = 当前等级被夹到上限时记住那个上限
@@ -763,7 +917,7 @@ Tools.register({
     const { host, data, esc, fmt, ui, $, invalidate } = ctx;
 
     /* ---------- 引擎：调用独立引擎块 ---------- */
-    const { MAXLV, SECTS, MILE, costOf, bandsOf, spellsOf } = SkillEngine(data);
+    const { MAXLV, SECTS, costOf, bandsOf, spellsOf } = SkillEngine(data);
 
     /* ---------- 状态 ---------- */
     const state = {
@@ -1029,10 +1183,10 @@ Tools.register({
         const bands = bandsOf(ranges);
         el.bandBox.innerHTML = ui.table({
           cls: 'tall',
-          head: ['等级区间', '经验', '金钱', '钱/经验'],
+          head: ['等级区间', '金钱', '经验', '钱/经验'],
           rows: bands.map(b => ({
             cells: [b.lo === b.hi ? `${b.lo}` : `${b.lo} – ${b.hi}`,
-                    fmt.num(b.exp), fmt.num(b.gold),
+                    fmt.num(b.gold), fmt.num(b.exp),
                     { text: (b.gold / b.exp).toFixed(3), cls: 'side-note' }],
           })),
         });
@@ -1063,11 +1217,11 @@ Tools.register({
         el.detail.hidden = false;
         const r = costOf(from, to);
         el.stats.innerHTML = ui.stats([
-          { k:'消耗经验', v: fmt.cn(r.exp), sub: fmt.num(r.exp), tone:'jade' },
           { k:'消耗金钱', v: fmt.cn(r.gold), sub: fmt.num(r.gold), tone:'gold' },
+          { k:'消耗经验', v: fmt.cn(r.exp),  sub: fmt.num(r.exp),  tone:'jade' },
         ]);
         el.summary.innerHTML = `<b>${from}</b> 级 → <b>${to}</b> 级，共 <b>${r.levels}</b> 级<br>` +
-          `平均每级 经验 <b>${fmt.num(r.exp / r.levels)}</b> · 金钱 <b>${fmt.num(r.gold / r.levels)}</b>`;
+          `平均每级 金钱 <b>${fmt.num(r.gold / r.levels)}</b> · 经验 <b>${fmt.num(r.exp / r.levels)}</b>`;
         scheduleBands([[from, to]], `${from}|${to}`);
         return;
       }
@@ -1111,20 +1265,20 @@ Tools.register({
         return { r, c };
       });
       el.stats.innerHTML = ui.stats([
-        { k:'消耗经验', v: fmt.cn(totalExp), sub: fmt.num(totalExp), tone:'jade' },
         { k:'消耗金钱', v: fmt.cn(totalGold), sub: fmt.num(totalGold), tone:'gold' },
+        { k:'消耗经验', v: fmt.cn(totalExp),  sub: fmt.num(totalExp),  tone:'jade' },
       ]);
       el.summary.innerHTML = `<b>${esc(sect.name)}</b> · 已选 <b>${rows.length}</b> / 7 个师门技能，` +
         (filled.length < rows.length ? `其中 <b>${filled.length}</b> 个已填等级` : `共 <b>${totalLevels}</b> 级`);
       el.batchBox.hidden = false;
       el.batchBox.innerHTML = ui.table({
         cls: 'tall',
-        head: ['师门技能', '区间', '经验', '金钱'],
+        head: ['师门技能', '区间', '金钱', '经验'],
         rows: lines.map(({ r, c }) => ({
           cells: [`${esc(r.skill.name)}${r.skill.main ? ' <span class="tag">主</span>' : ''}`,
-                  `${r.from} → ${r.to}`, fmt.num(c.exp), fmt.num(c.gold)],
+                  `${r.from} → ${r.to}`, fmt.num(c.gold), fmt.num(c.exp)],
         })),
-        total: ['合计', `${filled.length} 个技能`, fmt.num(totalExp), fmt.num(totalGold)],
+        total: ['合计', `${filled.length} 个技能`, fmt.num(totalGold), fmt.num(totalExp)],
       });
       scheduleBands(filled.map(r => [r.from, r.to]), filled.map(r => r.from + '-' + r.to).join('|'));
     }
@@ -1251,17 +1405,17 @@ Tools.register({
       }
       const r = costBetween(cur, target);
       let html = ui.stats([
-        { k:'消耗经验', v: fmt.cn(r.exp), sub: fmt.num(r.exp), tone:'jade' },
         { k:'消耗金钱', v: fmt.cn(r.money), sub: fmt.num(r.money), tone:'gold' },
+        { k:'消耗经验', v: fmt.cn(r.exp),   sub: fmt.num(r.exp),   tone:'jade' },
       ]);
       html += `<div class="summary">第 <b>${cur}</b> 个 → 第 <b>${target}</b> 个，共 <b>${r.count}</b> 个乾元丹</div>`;
       html += ui.table({
         cls: 'tall',
-        head: ['乾元丹', '需等级', '经验', '金钱'],
+        head: ['乾元丹', '需等级', '金钱', '经验'],
         rows: r.steps.map(d => ({
-          cells: [`第 ${d.n} 个`, `${d.level} 级`, fmt.num(d.exp), fmt.num(d.money)],
+          cells: [`第 ${d.n} 个`, `${d.level} 级`, fmt.num(d.money), fmt.num(d.exp)],
         })),
-        total: ['合计', `${r.count} 个`, fmt.num(r.exp), fmt.num(r.money)],
+        total: ['合计', `${r.count} 个`, fmt.num(r.money), fmt.num(r.exp)],
       });
       $('#qy-result', host).innerHTML = html;
     }
@@ -1282,6 +1436,149 @@ Tools.register({
 });
 
 /* ============================================================
+   4.6 工具：生活技能（帮派书院）
+   ============================================================ */
+Tools.register({
+  id: 'lifeskill',
+  name: '生活技能',
+  tagline: '帮派书院学生活技能要多少经验 / 金钱 / 帮贡',
+  dataId: 'data-skill',
+  create(ctx){
+    const { host, data, fmt, ui, esc, $, invalidate } = ctx;
+    const { SKILLS, skillById, costBetween, bandsOf } = LifeEngine(data.cost.exp);
+
+    /** 空串 = 还没填，一律用 null 表示（与其它三个工具同一口径） */
+    const read = id => {
+      const raw = $('#' + id, host).value.trim();
+      if (raw === '') return null;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) ? n : null;
+    };
+    const clampLv = (v, cap) => Math.max(0, Math.min(v, cap));
+
+    host.innerHTML = `
+      <div class="grid two" id="ls-grid">
+        <div class="card">
+          <h2>技能与等级</h2>
+          <div class="field">
+            <label class="f" for="ls-skill">生活技能</label>
+            <select id="ls-skill">${SKILLS.map(s =>
+              `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>
+            <div class="hint" id="ls-skill-hint"></div>
+          </div>
+          <div class="field">
+            <label class="f" for="ls-from">当前等级</label>
+            <input type="number" id="ls-from" inputmode="numeric" step="1" min="0" placeholder="0 ~ 160">
+            <div class="hint" id="ls-from-hint"></div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label class="f" for="ls-to">目标等级</label>
+            <input type="number" id="ls-to" inputmode="numeric" step="1" min="0" placeholder="0 ~ 160">
+            <div class="hint" id="ls-to-hint"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>计算结果</h2>
+          <div id="ls-result"></div>
+        </div>
+      </div>
+      <div id="ls-detail" hidden></div>`;
+
+    const el = {
+      skill: $('#ls-skill', host), from: $('#ls-from', host), to: $('#ls-to', host),
+      result: $('#ls-result', host), detail: $('#ls-detail', host),
+    };
+    let capNotice = false;      // 上一次 change / blur 是否因超上限被夹过
+
+    /** 只刷范围提示 / 占位，不写回输入框（写回统一走 commitInputs） */
+    function applyMeta(skill){
+      const range = `可填 0 ~ ${skill.cap}`;
+      el.from.placeholder = range.replace('可填 ', '');
+      el.to.placeholder = range.replace('可填 ', '');
+      el.from.max = skill.cap; el.to.max = skill.cap;
+      $('#ls-from-hint', host).textContent = range;
+      $('#ls-to-hint', host).textContent = range;
+      const full = costBetween(skill.id, 0, skill.cap);
+      $('#ls-skill-hint', host).textContent =
+        `上限 ${skill.cap} 级 · 学满共 ${fmt.cn(full.exp)} 经验 / ${fmt.cn(full.money)} 金钱`;
+    }
+
+    function render(){
+      const skill = skillById(el.skill.value);
+      applyMeta(skill);
+      const cap = skill.cap, rawFrom = read('ls-from'), rawTo = read('ls-to');
+      // 越界说明：正在输入时按当前值判断，被夹紧后靠 capNotice 记住（编辑时清除）
+      const over = (rawFrom !== null && rawFrom > cap) || (rawTo !== null && rawTo > cap);
+      const trimmed = (over || capNotice)
+        ? ui.alert(`${esc(skill.name)}的上限为 ${cap} 级，超出的部分已按 ${cap} 级计算。`) : '';
+
+      if (rawFrom === null || rawTo === null){                 // 没填完不算
+        el.result.innerHTML = ui.idle('填写当前等级与目标等级后自动计算') + trimmed;
+        el.detail.hidden = true;
+        return;
+      }
+      const from = clampLv(rawFrom, cap), to = clampLv(rawTo, cap);
+
+      if (to <= from){
+        el.detail.hidden = true;
+        el.result.innerHTML = trimmed + ui.idle(from === to
+          ? `当前已经是 ${to} 级，无需提升。`
+          : '目标等级不能低于当前等级。');
+        return;
+      }
+
+      const r = costBetween(skill.id, from, to);
+      let html = trimmed + ui.stats([
+        { k:'消耗金钱',     v: fmt.cn(r.money),      sub: fmt.num(r.money),  tone:'gold' },
+        { k:'消耗经验',     v: fmt.cn(r.exp),        sub: fmt.num(r.exp),    tone:'jade' },
+        { k:'消耗帮贡',     v: fmt.num(r.bgUsed),    sub: `共 ${r.count} 级` },
+        { k:'需要持有帮贡', v: fmt.num(r.bgNeed),    sub: '目标等级 × 5' },
+      ]);
+      html += `<div class="summary">${esc(skill.name)} <b>${from}</b> 级 → <b>${to}</b> 级，
+        共 <b>${r.count}</b> 级</div>`;
+      el.result.innerHTML = html;
+
+      const bands = bandsOf(skill.id, from, to);
+      el.detail.innerHTML = ui.card({
+        title: '消耗明细（每 5 级一档）',
+        body: ui.table({
+          cls: 'tall',
+          head: ['等级', '金钱', '经验', '帮贡'],
+          rows: bands.map(b => [`${b.lo} → ${b.hi}`, fmt.num(b.money), fmt.num(b.exp), fmt.num(b.bgUsed)]),
+          total: ['合计', fmt.num(r.money), fmt.num(r.exp), fmt.num(r.bgUsed)],
+        }),
+      });
+      el.detail.hidden = false;
+    }
+
+    /** 夹紧只在 change / blur 写回，input 阶段绝不改写输入框（见 README §8.6） */
+    function commitInputs(){
+      const cap = skillById(el.skill.value).cap;
+      let hit = false;
+      [el.from, el.to].forEach(node => {
+        const raw = node.value.trim();
+        if (raw === '') return;
+        const n = parseInt(raw, 10);
+        if (!Number.isFinite(n)){ node.value = ''; return; }
+        if (n > cap) hit = true;
+        const c = clampLv(n, cap);
+        if (String(c) !== raw) node.value = String(c);
+      });
+      capNotice = hit;                       // 夹过就在结果区保留一句说明
+    }
+
+    el.skill.addEventListener('change', () => { commitInputs(); invalidate(); });
+    [el.from, el.to].forEach(node => {
+      node.addEventListener('input',  () => { capNotice = false; invalidate(); });
+      node.addEventListener('change', () => { commitInputs(); invalidate(); });
+      node.addEventListener('blur',   () => { commitInputs(); invalidate(); });
+    });
+
+    return { render };
+  },
+});
+
+/* ============================================================
    5. 启动
    ============================================================ */
 Tools.boot(document.getElementById('host'));
@@ -1292,6 +1589,7 @@ Tools.boot(document.getElementById('host'));
 (function selfCheck(){
   const sum = (a, b, arr) => { let s = 0; for (let L = a; L <= b; L++) s += arr[L-1]; return s; };
   const bad = [];
+  let life = 0;
   try {
     const d = JSON.parse(document.getElementById('data-skill').textContent);
     const cases = [
@@ -1306,8 +1604,29 @@ Tools.boot(document.getElementById('host'));
     if (d.sects.length !== 21) bad.push('门派数不是 21');
   } catch (err){ bad.push('师门技能数据岛解析失败: ' + err.message); }
 
+  try {
+    // 每个技能 0→上限 的官方对拍值（官方工具箱接口逐级实测后加总）
+    const L = LifeEngine(JSON.parse(document.getElementById('data-skill').textContent).cost.exp);
+    const anchors = [
+      [201,140,104406194,13901235],[202,160,197441706,33480545],[203,160,197441706,33480545],
+      [204,160,161126102,26315625],[205,160,161126102,26315625],[206,160,197441706,33480545],
+      [207,160,161126102,26315625],[208,140,74141717,13901235],[209,160,197441706,33480545],
+      [210,160,197441706,33480545],[211,160,197441706,33480545],[212,160,197441706,33480545],
+      [216,160,197441706,33480545],[217,160,197441706,33480545],[218,120,87583962,13137285],
+      [230,60,3612200000,903050000],[231,160,161126102,26315625],[237,60,3612200000,903050000],
+      [239,20,129400000,32350000],[240,20,129400000,32350000],[241,20,129400000,32350000],
+    ];
+    for (const [sid, cap, e, m] of anchors){
+      const sk = L.SKILLS.find(s => s.sid === sid);
+      if (!sk || sk.cap !== cap){ bad.push(`生活技能缺技能或上限不符 ${sid}`); continue; }
+      const r = L.costBetween(sk.id, 0, cap);
+      if (r.exp !== e || r.money !== m) bad.push(`生活技能 ${sk.name} 0-${cap}`);
+      else life++;
+    }
+  } catch (err){ bad.push('生活技能引擎自检失败: ' + err.message); }
+
   if (bad.length) console.error('[数据自检未通过]', bad);
-  else console.log('[数据自检] 师门技能 12/12 通过');
+  else console.log(`[数据自检] 师门技能 12/12 通过 · 生活技能 ${life}/21 通过`);
 })();
 </script>
 </body>
